@@ -25,6 +25,7 @@ interface DashboardData {
 export default function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     async function load() {
@@ -33,9 +34,11 @@ export default function DashboardPage() {
         if (res.ok) {
           const json = (await res.json()) as DashboardData;
           setData(json);
+        } else {
+          setError("Failed to load dashboard data.");
         }
       } catch {
-        // 加载失败静默处理
+        setError("Something went wrong. Please try again.");
       } finally {
         setLoading(false);
       }
@@ -47,6 +50,20 @@ export default function DashboardPage() {
     return (
       <div className="flex items-center justify-center py-20">
         <p className="text-secondary text-[0.9375rem]">Loading...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 gap-4">
+        <p className="text-secondary text-[0.9375rem]">{error}</p>
+        <button
+          onClick={() => window.location.reload()}
+          className="text-accent text-[0.9375rem] font-medium hover:underline cursor-pointer"
+        >
+          Retry
+        </button>
       </div>
     );
   }

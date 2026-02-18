@@ -18,6 +18,7 @@ export default function ProfilePage() {
   const [distances, setDistances] = useState<PlayerClubDistance[]>([]);
   const [enabledCodes, setEnabledCodes] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     async function loadData() {
@@ -27,6 +28,11 @@ export default function ProfilePage() {
           fetch("/api/profile/bag"),
           fetch("/api/profile/distances"),
         ]);
+
+        if (!profileRes.ok || !bagRes.ok || !distRes.ok) {
+          setError("Failed to load profile data.");
+          return;
+        }
 
         const profileData = await profileRes.json();
         const bagData = (await bagRes.json()) as PlayerBagClub[];
@@ -43,7 +49,7 @@ export default function ProfilePage() {
         }
         setEnabledCodes(codes);
       } catch {
-        // 如果请求失败（如未登录），保持空状态
+        setError("Something went wrong. Please try again.");
       } finally {
         setLoading(false);
       }
@@ -55,6 +61,20 @@ export default function ProfilePage() {
     return (
       <div className="flex items-center justify-center py-20">
         <p className="text-secondary text-[0.9375rem]">Loading...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 gap-4">
+        <p className="text-secondary text-[0.9375rem]">{error}</p>
+        <button
+          onClick={() => window.location.reload()}
+          className="text-accent text-[0.9375rem] font-medium hover:underline cursor-pointer"
+        >
+          Retry
+        </button>
       </div>
     );
   }

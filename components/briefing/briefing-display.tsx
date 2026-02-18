@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import { SectionTitle } from "@/components/ui/section-title";
 import { Button } from "@/components/ui/button";
@@ -225,6 +226,13 @@ export function BriefingDisplay({ briefing }: BriefingDisplayProps) {
         <SectionTitle className="mb-4">Caddie Notes</SectionTitle>
         <BriefingText text={bj.display_text} />
       </Card>
+
+      {/* 开始轮次快捷入口 */}
+      <Link href="/rounds/new">
+        <Button variant="secondary" className="w-full">
+          Start a Round
+        </Button>
+      </Link>
     </div>
   );
 }

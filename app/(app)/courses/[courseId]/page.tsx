@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { SectionTitle } from "@/components/ui/section-title";
@@ -38,6 +39,7 @@ export default function CourseDetailPage() {
 
   const [course, setCourse] = useState<CourseDetail | null>(null);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState("");
 
   // 添加 tee 的表单状态
   const [showAddTee, setShowAddTee] = useState(false);
@@ -58,7 +60,7 @@ export default function CourseDetailPage() {
           router.push("/courses");
         }
       } catch {
-        // 加载失败
+        setFetchError("Something went wrong. Please try again.");
       } finally {
         setLoading(false);
       }
@@ -120,8 +122,15 @@ export default function CourseDetailPage() {
 
   if (!course) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <p className="text-secondary text-[0.9375rem]">Course not found.</p>
+      <div className="flex flex-col items-center justify-center py-20 gap-4">
+        <p className="text-secondary text-[0.9375rem]">
+          {fetchError || "Course not found."}
+        </p>
+        <Link href="/courses">
+          <span className="text-accent text-[0.9375rem] font-medium hover:underline cursor-pointer">
+            Back to courses
+          </span>
+        </Link>
       </div>
     );
   }
@@ -186,6 +195,15 @@ export default function CourseDetailPage() {
       </div>
 
       {/* 添加 Tee */}
+      {/* 创建 Briefing 快捷入口 */}
+      {course.tees.length > 0 && (
+        <Link href="/briefing">
+          <Button variant="secondary" className="w-full">
+            Create Briefing for This Course
+          </Button>
+        </Link>
+      )}
+
       {showAddTee ? (
         <div className="flex flex-col gap-3 p-4 rounded-lg border border-divider bg-white">
           <SectionTitle>New Tee</SectionTitle>
