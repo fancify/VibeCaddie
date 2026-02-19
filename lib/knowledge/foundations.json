@@ -5,92 +5,92 @@
     {
       "id": "found_001",
       "topic": "course_management",
-      "principle": "The biggest mistake amateur golfers make is playing a course management strategy designed for professionals. Your strategy should be based on your actual shot patterns, not what you see on TV.",
-      "application": "Track your real dispersion pattern — where your shots actually go, not where you aim. Use that oval shape as the basis for every target selection decision on the course."
+      "principle": "Smart course management is like being the casino instead of the gambler. Casinos always win because the odds favor them and they never get emotional. Stack the odds in your favor by making rational decisions on every shot.",
+      "application": "Before each shot, ask yourself: 'Am I making this decision rationally, or am I reacting emotionally to my last shot?' If you're angry or anxious, that's a red flag to choose the conservative option."
     },
     {
       "id": "found_002",
       "topic": "tee_strategy",
-      "principle": "For most amateurs, driver is the correct play on the majority of par 4s and par 5s, because the distance advantage outweighs the accuracy cost for typical handicap players.",
-      "application": "Unless the hole is extremely tight or there's forced carry trouble at your driver distance, hit driver. The extra distance shortens your approach, and shorter approaches find more greens."
+      "principle": "Start each hole thinking driver first, then find a good reason not to hit it. Tee shot distance is more important than accuracy for scoring — an extra 20 yards is worth more strokes to a 20-handicap than to a Tour pro.",
+      "application": "Only lay back from driver when the landing area is dangerously narrow between serious trouble on both sides, or when there's a penalty area at your driver distance that you can't carry. Otherwise, hit driver."
     },
     {
       "id": "found_003",
       "topic": "scoring",
-      "principle": "Your score is primarily determined by how you manage your bad shots, not by how good your best shots are. Avoiding double bogeys matters far more than making birdies.",
-      "application": "After a bad shot, your only goal is to get back in position for the next shot. Don't try a hero recovery — punch out to the fairway, take your bogey, and move on."
+      "principle": "At every handicap level, double-bogey avoidance is a bigger scoring separator than birdies. One of the cornerstones of course management is making decisions that reduce double bogeys. It is much easier to prevent larger scores than to make a birdie.",
+      "application": "After any mistake, shift your goal from 'save par' to 'save bogey.' Bogey is your friend. A round with 6 bogeys and no doubles (78) beats a round with 3 birdies and 4 doubles (81) every time."
     },
     {
       "id": "found_004",
       "topic": "mental_game",
-      "principle": "Expectations should be calibrated to your handicap. A 15-handicap should expect to make bogey on most holes and be pleasantly surprised by pars, not frustrated by them.",
-      "application": "Before each round, set your target score realistically. If you're a 15-handicap, shooting 87 is a good round. Stop comparing yourself to par and start comparing to your own realistic baseline."
+      "principle": "Your score on each hole is a lagging measure of the decisions you make on each shot. Instead of entering a round with a target score, commit to making the smartest decision possible on each individual shot.",
+      "application": "Stop looking at the scorecard mid-round. Instead of 'I need to birdie the next hole to break 85,' think 'What's the smartest play here?' Focus on process, not results — the score will follow."
     },
     {
       "id": "found_005",
       "topic": "green_approach",
-      "principle": "Aim for the center of the green on approach shots. Amateurs overestimate their precision; aiming at the pin when it's tucked near trouble leads to more lost strokes than gained.",
-      "application": "On approach shots, pick the middle of the green as your target. You'll occasionally end up near a pin by chance, but you'll rarely end up in serious trouble."
+      "principle": "Aim at the center of every green and play closer to the back yardage. Almost every golfer misses greens on the short side most of the time — taking more club fixes this instantly and leads to more greens in regulation.",
+      "application": "The center of the green never moves. When in doubt, take one extra club and aim middle. You'll miss fewer greens short, have fewer short-sided chip shots, and your scores will drop without changing your swing."
     },
     {
       "id": "found_006",
       "topic": "risk_reward",
-      "principle": "The expected value of conservative play is almost always higher for amateurs. The math of risk-reward shifts dramatically when your success rate on aggressive shots drops below 50%.",
-      "application": "Before attempting a risky shot, estimate your success rate honestly. If it's below 60%, the conservative play will save you strokes over the course of a full round."
+      "principle": "PGA Tour players make bogey 80% of the time in recovery situations. If the best golfers on earth can't save par from the trees, you certainly shouldn't expect to. The hero shot you see on TV is the exception, not the rule.",
+      "application": "When your ball is in trouble — trees, deep rough, fairway bunker with a high lip — your only goal is getting back to safety. Punch sideways to the fairway, take your bogey, and move on. Two wrongs never make a right."
     },
     {
       "id": "found_007",
       "topic": "hazard_placement",
-      "principle": "Most penalty strokes come from hazards that are in play for your actual shot pattern, not from hazards that are in play for your intended target. Shift your target to take hazards out of play.",
-      "application": "If water runs down the left side, don't aim at the middle of the fairway — aim right-center. Your misses will stay dry, and your good shots will still be in the fairway."
+      "principle": "Landing in light rough costs about 0.3 shots on average. Landing in trees costs 1.1 shots. Fairway bunkers cost 1.4 shots. Out of bounds is the worst penalty. These numbers should guide your target selection — light rough is not a disaster.",
+      "application": "When trouble is on one side, aim your target toward the safe side, even if it means aiming into the rough. Missing the fairway into light rough is barely a penalty. Missing into trees or a bunker can ruin a hole."
     },
     {
       "id": "found_008",
       "topic": "par3_strategy",
-      "principle": "On par 3s, club selection should be based on carrying the front edge of the green with your average distance, not your best strike. Most amateurs come up short on par 3s.",
-      "application": "Take one more club than you think on par 3s. The center of the green is your target, and flying it 10 yards past center is better than landing 10 yards short of the front edge."
+      "principle": "Pin hunting on par 3s is counterproductive. The combination of approach shot proximity and putting difficulty means that aiming at a tucked pin rarely produces birdies — it produces more short-sided misses and double bogeys.",
+      "application": "On every par 3, aim center of green regardless of pin position. If you land on the green 25 feet from the hole, you're in great shape. A two-putt par is far better than the bogey or double that comes from chasing a tucked flag."
     },
     {
       "id": "found_009",
       "topic": "par5_strategy",
-      "principle": "Par 5s are the best scoring holes for amateurs — not because of reaching in two, but because three well-placed shots leave a reasonable birdie or easy par putt.",
-      "application": "Play par 5s as three-shot holes. Hit driver, lay up to your favorite approach distance, and give yourself a birdie putt. This strategy produces more birdies than trying to reach in two."
+      "principle": "Par 5s are where most golfers make their birdies, just like Tour pros. Tiger Woods made a disproportionate number of birdies on par 5s while playing conservatively on par 3s and 4s. Smart par-5 play means avoiding the bunkers.",
+      "application": "On par 5s, identify the bunkers and hazards guarding the green. If you can't clear them with your second shot, lay up to a distance that takes them completely out of play — ideally your favorite wedge yardage (80-120 yards)."
     },
     {
       "id": "found_010",
       "topic": "wind_weather",
-      "principle": "Wind affects amateurs more than they realize because higher-handicap shots have more spin and higher trajectories. Take extra club into the wind beyond what feels reasonable.",
-      "application": "In moderate wind (10-15 mph), take two extra clubs into the wind, not one. Your ball spins more than a pro's, so wind amplifies the distance loss beyond what you'd expect."
+      "principle": "Headwinds alter distance far more than tailwinds help. A 10 mph headwind adds about 10% of total distance plus 5 yards. A 10 mph tailwind only subtracts about 3% of distance. To go lower in wind, use more club — never swing harder.",
+      "application": "In a headwind, add one club for every 5 mph of wind as a baseline, then adjust. For example, 150 yards into a 10 mph headwind plays about 165 yards. Take one or two more clubs and swing easy — hard swings add spin, which the wind magnifies."
     },
     {
       "id": "found_011",
       "topic": "scoring",
-      "principle": "Strokes are lost in predictable patterns: three-putts, penalty strokes, and short-game mistakes from bad positions. Eliminating even one of these categories drops your scores significantly.",
-      "application": "Track where you lose strokes for 5 rounds. You'll likely find that eliminating three-putts or penalties alone could save 3-5 shots per round — more than any swing change."
+      "principle": "Think of birdies as an occasional bonus for playing smart golf, not as a goal. A typical PGA Tour player averages only 3.5 birdies per round, and most occur on par 5s. Recreational golfers seldom make birdies even at scratch level.",
+      "application": "Never say 'I need to make a birdie here.' Instead, play for smart position and let birdies happen naturally when putts fall. Actively chasing birdies leads to aggressive decisions that create doubles."
     },
     {
       "id": "found_012",
       "topic": "mental_game",
-      "principle": "Process over outcome: focus on making good decisions, not on the result of each shot. Good decisions sometimes produce bad outcomes, and that's okay.",
-      "application": "After each shot, evaluate your decision, not the result. If you aimed center-green with the right club and pulled it into a bunker, the decision was still correct."
+      "principle": "Every golfer has a two-way miss, no matter what shot shape they play. Even Dustin Johnson, ranked #1 in strokes gained off the tee, misses almost equally left and right. You cannot eliminate one side of the course.",
+      "application": "Don't plan your tee shot assuming you'll only miss one direction. Your driver dispersion is probably 55-70 yards wide. Accept both sides of your pattern exist and choose targets that keep both misses out of serious trouble."
     },
     {
       "id": "found_013",
       "topic": "course_management",
-      "principle": "Think about your next shot before hitting your current one. Every shot should leave you in the best position for what follows, not just advance the ball the maximum distance.",
-      "application": "On every shot, ask: where do I want to play my next shot from? Then work backwards to determine the right target and club for the current shot."
+      "principle": "Studying a course before you play with satellite imagery is one of the most effective ways to lower scores. Pre-round planning takes about 10-15 minutes and primarily focuses on tee shot club selection and targets based on hazard distances.",
+      "application": "Before playing an unfamiliar course, pull up Google Earth and note: (1) where big trouble is on each tee shot, (2) distances to fairway bunkers and water, (3) which holes might need less than driver. Bring these notes to the course."
     },
     {
       "id": "found_014",
       "topic": "risk_reward",
-      "principle": "The 'hero shot' over water or through trees has a much lower success rate than amateurs believe. Studies show amateurs succeed on aggressive recovery shots less than 20% of the time.",
-      "application": "When your ball is in trouble, take the medicine. A sideways chip to the fairway followed by a wedge to the green almost always beats trying to thread a gap in the trees."
+      "principle": "When short-sided near a green, trying to land the ball right at the edge brings double bogey into play. The smart play is to land past the hole — you might leave a longer putt for par, but you virtually guarantee bogey at worst.",
+      "application": "On a short-sided chip, shift your landing target past the hole. You'll putt from further away but on the putting surface. A 20-foot putt for par beats a 3-foot chip attempt that might not even reach the green."
     },
     {
       "id": "found_015",
       "topic": "scoring",
-      "principle": "Managing your proximity to the hole on approach shots is the biggest lever for scoring improvement. Getting 10 feet closer on average makes a massive difference in putts per round.",
-      "application": "Focus on hitting more greens from closer distances rather than improving your putting. The best way to reduce putts is to hit it closer, and the best way to hit it closer is to have shorter approaches."
+      "principle": "Knowing your real distances — not your best-ever, but your average carry with each club — is the foundation of course management. Most golfers overestimate their distances by 10-15 yards, leading to chronically short approach shots.",
+      "application": "Use your actual average distance, not your 'when I really catch it' distance. If your 7-iron sometimes goes 160 but usually goes 145, play it as a 145-yard club. You'll miss fewer greens short, which is where most scoring damage occurs."
     }
   ]
 }
