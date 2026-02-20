@@ -97,6 +97,17 @@ export async function upsertRoundHole(data: {
 }
 
 /**
+ * 删除一轮（校验 user_id）
+ */
+export async function deleteRound(userId: string, roundId: string): Promise<boolean> {
+  const result = await query(
+    'DELETE FROM rounds WHERE id = $1 AND user_id = $2',
+    [roundId, userId]
+  );
+  return (result.rowCount ?? 0) > 0;
+}
+
+/**
  * 更新轮次总杆数
  */
 export async function updateRoundTotalScore(
@@ -107,6 +118,20 @@ export async function updateRoundTotalScore(
   await query(
     'UPDATE rounds SET total_score = $1 WHERE id = $2 AND user_id = $3',
     [totalScore, roundId, userId]
+  );
+}
+
+/**
+ * 保存 recap 文本到轮次
+ */
+export async function saveRecapText(
+  userId: string,
+  roundId: string,
+  recapText: string
+): Promise<void> {
+  await query(
+    'UPDATE rounds SET recap_text = $1 WHERE id = $2 AND user_id = $3',
+    [recapText, roundId, userId]
   );
 }
 

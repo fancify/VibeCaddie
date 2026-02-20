@@ -128,9 +128,9 @@ export function HoleEntry({
         </p>
       </div>
 
-      {/* Drive Club 选择 */}
+      {/* Club Played（开球杆） */}
       <div>
-        <p className="text-[0.875rem] font-medium text-text mb-2">Drive Club</p>
+        <p className="text-[0.875rem] font-medium text-text mb-2">Club Played</p>
         <div className="grid grid-cols-5 sm:grid-cols-7 gap-2">
           {playerBagClubs.map((club) => (
             <button

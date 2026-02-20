@@ -97,6 +97,7 @@ CREATE TABLE IF NOT EXISTS rounds (
   course_tee_id UUID NOT NULL REFERENCES course_tees(id),
   played_date DATE NOT NULL,
   total_score INT,
+  recap_text TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 

@@ -2,7 +2,7 @@
 
 import { callLLM, RECAP_SYSTEM_PROMPT } from './llm';
 import { updateLearningAfterRound } from './learning';
-import { getRoundById, getRoundHoles } from '@/lib/db/rounds';
+import { getRoundById, getRoundHoles, saveRecapText } from '@/lib/db/rounds';
 import { getBriefingForRound } from '@/lib/db/briefings';
 import { getPlayerHoleHistory } from '@/lib/db/players';
 import { getCourseHoles } from '@/lib/db/courses';
@@ -70,7 +70,10 @@ export async function generateRecap(
   // 7. 调用 LLM
   const response = await callLLM(RECAP_SYSTEM_PROMPT, prompt);
 
-  // 8. 触发学习更新
+  // 8. 存储 recap 到数据库
+  await saveRecapText(userId, roundId, response.content);
+
+  // 9. 触发学习更新
   await updateLearningAfterRound(userId, roundId);
 
   return response.content;

@@ -23,7 +23,7 @@ export default function RecapPage() {
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState("");
 
-  // 加载轮次基本信息
+  // 加载轮次基本信息，如果已有 recap_text 直接展示
   useEffect(() => {
     async function loadRound() {
       try {
@@ -31,6 +31,9 @@ export default function RecapPage() {
         if (res.ok) {
           const data = (await res.json()) as RoundDetail;
           setRound(data);
+          if (data.recap_text) {
+            setRecapText(data.recap_text);
+          }
         } else if (res.status === 404) {
           setError("Round not found.");
         } else {

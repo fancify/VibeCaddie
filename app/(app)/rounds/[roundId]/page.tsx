@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { RoundSummary } from "@/components/round/round-summary";
 import { Button } from "@/components/ui/button";
@@ -18,11 +18,13 @@ interface RoundDetail extends Round {
 
 export default function RoundDetailPage() {
   const params = useParams();
+  const router = useRouter();
   const roundId = params.roundId as string;
 
   const [round, setRound] = useState<RoundDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -64,6 +66,24 @@ export default function RoundDetailPage() {
     },
     [round, roundId]
   );
+
+  // 删除轮次
+  const handleDelete = useCallback(async () => {
+    if (!confirm("Delete this round? This cannot be undone.")) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/rounds/${roundId}`, { method: "DELETE" });
+      if (res.ok) {
+        router.push("/rounds");
+      } else {
+        setError("Failed to delete round.");
+      }
+    } catch {
+      setError("Something went wrong.");
+    } finally {
+      setDeleting(false);
+    }
+  }, [roundId, router]);
 
   if (loading) {
     return (
@@ -134,6 +154,14 @@ export default function RoundDetailPage() {
         <Link href={`/rounds/${roundId}/recap`} className="flex-1">
           <Button className="w-full">Generate Recap</Button>
         </Link>
+        <Button
+          variant="ghost"
+          onClick={handleDelete}
+          disabled={deleting}
+          className="text-red-500 hover:text-red-600 hover:bg-red-50 shrink-0"
+        >
+          {deleting ? "..." : "Delete"}
+        </Button>
       </div>
     </div>
   );

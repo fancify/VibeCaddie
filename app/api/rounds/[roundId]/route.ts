@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getUserId } from "@/lib/auth/session";
-import { getRoundById, getRoundHoles, updateRoundTotalScore } from "@/lib/db/rounds";
+import { getRoundById, getRoundHoles, updateRoundTotalScore, deleteRound } from "@/lib/db/rounds";
 import { getCourseHoles } from "@/lib/db/courses";
 import { query } from "@/lib/db/client";
 
@@ -83,6 +83,32 @@ export async function PUT(
     }
 
     await updateRoundTotalScore(userId, roundId, total_score);
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    if ((error as Error).message === "Unauthorized") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    return NextResponse.json(
+      { error: "Internal Server Error" },
+      { status: 500 }
+    );
+  }
+}
+
+/** DELETE /api/rounds/[roundId] — 删除轮次 */
+export async function DELETE(
+  _request: NextRequest,
+  context: RouteContext
+) {
+  try {
+    const userId = await getUserId();
+    const { roundId } = await context.params;
+
+    const deleted = await deleteRound(userId, roundId);
+    if (!deleted) {
+      return NextResponse.json({ error: "Round not found" }, { status: 404 });
+    }
+
     return NextResponse.json({ success: true });
   } catch (error) {
     if ((error as Error).message === "Unauthorized") {

@@ -86,6 +86,7 @@ export interface Round {
   course_tee_id: string;
   played_date: string;
   total_score: number | null;
+  recap_text: string | null;
   created_at: string;
 }
 
