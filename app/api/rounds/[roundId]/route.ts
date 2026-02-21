@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getUserId } from "@/lib/auth/session";
-import { getRoundById, getRoundHoles, updateRoundTotalScore, deleteRound } from "@/lib/db/rounds";
+import { getRoundById, getRoundHoles, updateRoundTotalScore, saveRecapText, deleteRound } from "@/lib/db/rounds";
 import { getCourseHoles } from "@/lib/db/courses";
 import { query } from "@/lib/db/client";
 
@@ -64,7 +64,7 @@ export async function GET(
   }
 }
 
-/** PUT /api/rounds/[roundId] — 更新总杆数 */
+/** PUT /api/rounds/[roundId] — 更新总杆数或 recap_text */
 export async function PUT(
   request: NextRequest,
   context: RouteContext
@@ -73,16 +73,26 @@ export async function PUT(
     const userId = await getUserId();
     const { roundId } = await context.params;
     const body = await request.json();
-    const { total_score } = body as { total_score: number };
+    const { total_score, recap_text } = body as {
+      total_score?: number;
+      recap_text?: string;
+    };
 
-    if (typeof total_score !== "number") {
+    if (typeof total_score === "number") {
+      await updateRoundTotalScore(userId, roundId, total_score);
+    }
+
+    if (typeof recap_text === "string") {
+      await saveRecapText(userId, roundId, recap_text);
+    }
+
+    if (total_score === undefined && recap_text === undefined) {
       return NextResponse.json(
-        { error: "total_score is required" },
+        { error: "total_score or recap_text is required" },
         { status: 400 }
       );
     }
 
-    await updateRoundTotalScore(userId, roundId, total_score);
     return NextResponse.json({ success: true });
   } catch (error) {
     if ((error as Error).message === "Unauthorized") {

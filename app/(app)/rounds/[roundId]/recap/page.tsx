@@ -23,7 +23,11 @@ export default function RecapPage() {
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState("");
 
-  // 加载轮次基本信息，如果已有 recap_text 直接展示
+  // 编辑模式
+  const [editing, setEditing] = useState(false);
+  const [editText, setEditText] = useState("");
+  const [saving, setSaving] = useState(false);
+
   useEffect(() => {
     async function loadRound() {
       try {
@@ -67,6 +71,7 @@ export default function RecapPage() {
 
       const data = await res.json();
       setRecapText(data.recap_text);
+      setEditing(false);
     } catch {
       setError("Something went wrong while generating the recap.");
     } finally {
@@ -74,7 +79,26 @@ export default function RecapPage() {
     }
   }, [roundId]);
 
-  // 加载状态
+  // 保存编辑后的 recap
+  const handleSaveEdit = useCallback(async () => {
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/rounds/${roundId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ recap_text: editText }),
+      });
+      if (res.ok) {
+        setRecapText(editText);
+        setEditing(false);
+      }
+    } catch {
+      setError("Failed to save changes.");
+    } finally {
+      setSaving(false);
+    }
+  }, [roundId, editText]);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -83,7 +107,6 @@ export default function RecapPage() {
     );
   }
 
-  // 错误状态（找不到轮次）
   if (!round) {
     return (
       <div className="flex flex-col items-center justify-center py-20 gap-4">
@@ -99,7 +122,6 @@ export default function RecapPage() {
     );
   }
 
-  // 正在生成
   if (generating) {
     return (
       <div className="flex flex-col items-center justify-center py-20 gap-4">
@@ -111,7 +133,7 @@ export default function RecapPage() {
     );
   }
 
-  // 已经有回顾内容，展示它 + 重新生成按钮
+  // 已有 recap — 展示 / 编辑
   if (recapText) {
     return (
       <div className="flex flex-col gap-4">
@@ -120,24 +142,59 @@ export default function RecapPage() {
             &larr; Back to round
           </span>
         </Link>
-        <RecapDisplay
-          recapText={recapText}
-          courseName={round.course_name ?? "Unknown Course"}
-          teeName={round.tee_name ?? ""}
-          playedDate={round.played_date}
-        />
-        <Button
-          variant="secondary"
-          onClick={handleGenerate}
-          disabled={generating}
-        >
-          {generating ? "Regenerating..." : "Regenerate Recap"}
-        </Button>
+
+        {editing ? (
+          <>
+            <textarea
+              value={editText}
+              onChange={(e) => setEditText(e.target.value)}
+              className="w-full min-h-[400px] rounded-lg border border-divider p-4 text-[0.9375rem] text-text leading-relaxed focus:border-accent focus:ring-1 focus:ring-accent outline-none resize-y"
+            />
+            <div className="flex gap-3">
+              <Button onClick={handleSaveEdit} disabled={saving}>
+                {saving ? "Saving..." : "Save Changes"}
+              </Button>
+              <Button variant="secondary" onClick={() => setEditing(false)}>
+                Cancel
+              </Button>
+            </div>
+          </>
+        ) : (
+          <>
+            <RecapDisplay
+              recapText={recapText}
+              courseName={round.course_name ?? "Unknown Course"}
+              teeName={round.tee_name ?? ""}
+              playedDate={round.played_date}
+            />
+            <div className="flex gap-3">
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  setEditText(recapText);
+                  setEditing(true);
+                }}
+              >
+                Edit Recap
+              </Button>
+              <Button
+                variant="ghost"
+                onClick={handleGenerate}
+              >
+                Regenerate
+              </Button>
+            </div>
+          </>
+        )}
+
+        {error && (
+          <p className="text-red-600 text-[0.875rem]">{error}</p>
+        )}
       </div>
     );
   }
 
-  // 尚未生成回顾，展示生成按钮
+  // 尚未生成
   const dateStr = new Date(round.played_date).toLocaleDateString("en-US", {
     year: "numeric",
     month: "long",
