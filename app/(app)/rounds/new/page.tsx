@@ -151,6 +151,12 @@ function NewRoundContent() {
     setCurrentHole((h) => Math.min(courseHoles.length || 18, h + 1));
   }, [courseHoles.length]);
 
+  // 直接跳转到指定洞（先保存当前洞）
+  const handleJumpTo = useCallback(async (holeNum: number) => {
+    await holeEntryRef.current?.save();
+    setCurrentHole(holeNum);
+  }, []);
+
   // 完成轮次（保存所有未存的洞 + 当前洞）
   const handleFinish = useCallback(async () => {
     if (!roundId) return;
@@ -314,6 +320,7 @@ function NewRoundContent() {
         onPrev={handlePrev}
         onNext={handleNext}
         onFinish={handleFinish}
+        onJumpTo={handleJumpTo}
       />
     </div>
   );

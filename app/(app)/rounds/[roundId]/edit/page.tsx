@@ -101,6 +101,12 @@ export default function EditRoundPage() {
     setCurrentHole((h) => Math.min(total, h + 1));
   }, [roundInfo?.course_holes.length]);
 
+  // 直接跳转到指定洞（先保存当前洞）
+  const handleJumpTo = useCallback(async (holeNum: number) => {
+    await holeEntryRef.current?.save();
+    setCurrentHole(holeNum);
+  }, []);
+
   // 完成编辑 — 保存所有未存的洞 + 更新总分
   const handleFinish = useCallback(async () => {
     await holeEntryRef.current?.save();
@@ -214,6 +220,7 @@ export default function EditRoundPage() {
         onPrev={handlePrev}
         onNext={handleNext}
         onFinish={handleFinish}
+        onJumpTo={handleJumpTo}
       />
     </div>
   );

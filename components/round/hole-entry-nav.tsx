@@ -10,6 +10,8 @@ interface HoleEntryNavProps {
   onPrev: () => void;
   onNext: () => void;
   onFinish: () => void;
+  /** 点击洞号圆点直接跳转 */
+  onJumpTo?: (holeNumber: number) => void;
 }
 
 /** 洞导航组件 — 上一洞/下一洞 + 圆点指示器 */
@@ -20,6 +22,7 @@ export function HoleEntryNav({
   onPrev,
   onNext,
   onFinish,
+  onJumpTo,
 }: HoleEntryNavProps) {
   const isFirst = currentHole === 1;
   const isLast = currentHole === totalHoles;
@@ -34,22 +37,27 @@ export function HoleEntryNav({
           const isCurrent = holeNum === currentHole;
 
           return (
-            <div
+            <button
               key={holeNum}
+              type="button"
+              onClick={() => {
+                if (!isCurrent && onJumpTo) onJumpTo(holeNum);
+              }}
               className={`
-                w-6 h-6 rounded-full flex items-center justify-center
+                w-7 h-7 rounded-full flex items-center justify-center
                 text-[0.6875rem] font-medium transition-colors duration-150
+                ${onJumpTo ? "cursor-pointer" : "cursor-default"}
                 ${
                   isCurrent
-                    ? "bg-accent text-white"
+                    ? "bg-accent text-white ring-2 ring-accent/30"
                     : hasData
-                    ? "bg-accent/20 text-accent"
-                    : "bg-gray-200 text-secondary"
+                    ? "bg-accent/20 text-accent hover:bg-accent/30"
+                    : "bg-gray-200 text-secondary hover:bg-gray-300"
                 }
               `}
             >
               {holeNum}
-            </div>
+            </button>
           );
         })}
       </div>
