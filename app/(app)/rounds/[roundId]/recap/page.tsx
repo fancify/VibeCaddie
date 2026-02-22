@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { useParams, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { RecapDisplay } from "@/components/recap/recap-display";
 import { Button } from "@/components/ui/button";
@@ -13,9 +13,11 @@ interface RoundDetail extends Round {
   course_holes: CourseHole[];
 }
 
-export default function RecapPage() {
+function RecapContent() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const roundId = params.roundId as string;
+  const shouldRegenerate = searchParams.get("regenerate") === "1";
 
   const [round, setRound] = useState<RoundDetail | null>(null);
   const [recapText, setRecapText] = useState<string | null>(null);
@@ -78,6 +80,15 @@ export default function RecapPage() {
       setGenerating(false);
     }
   }, [roundId]);
+
+  // URL 带 ?regenerate=1 时自动触发重新生成
+  const autoRegenRef = useRef(false);
+  useEffect(() => {
+    if (shouldRegenerate && !loading && round && !autoRegenRef.current) {
+      autoRegenRef.current = true;
+      handleGenerate();
+    }
+  }, [shouldRegenerate, loading, round, handleGenerate]);
 
   // 保存编辑后的 recap
   const handleSaveEdit = useCallback(async () => {
@@ -233,5 +244,19 @@ export default function RecapPage() {
         </Button>
       </div>
     </div>
+  );
+}
+
+export default function RecapPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex items-center justify-center py-20">
+          <p className="text-secondary text-[0.9375rem]">Loading...</p>
+        </div>
+      }
+    >
+      <RecapContent />
+    </Suspense>
   );
 }

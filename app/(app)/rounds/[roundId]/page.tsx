@@ -155,11 +155,20 @@ export default function RoundDetailPage() {
           <Link href={`/rounds/${roundId}/edit`} className="flex-1">
             <Button variant="secondary" className="w-full">Edit Holes</Button>
           </Link>
-          <Link href={`/rounds/${roundId}/recap`} className="flex-1">
-            <Button className="w-full">
-              {round.recap_text ? "View Recap" : "Generate Recap"}
-            </Button>
-          </Link>
+          {round.recap_text ? (
+            <>
+              <Link href={`/rounds/${roundId}/recap`} className="flex-1">
+                <Button className="w-full">View Recap</Button>
+              </Link>
+              <Link href={`/rounds/${roundId}/recap?regenerate=1`} className="flex-1">
+                <Button variant="secondary" className="w-full">Regenerate</Button>
+              </Link>
+            </>
+          ) : (
+            <Link href={`/rounds/${roundId}/recap`} className="flex-1">
+              <Button className="w-full">Generate Recap</Button>
+            </Link>
+          )}
         </div>
         <Button
           variant="ghost"
