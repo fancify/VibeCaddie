@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { SectionTitle } from "@/components/ui/section-title";
+import { Card } from "@/components/ui/card";
 import type { Course, CourseTee } from "@/lib/db/types";
 
 // ---------- Types ----------
@@ -21,6 +22,7 @@ interface LookupTee {
   tee_color: string;
   par_total: number;
   holes: LookupHole[];
+  selected: boolean; // 用户是否选择保存此 tee
 }
 
 interface LookupResult {
@@ -46,14 +48,69 @@ function ConfidenceBadge({ level }: { level: LookupResult["confidence"] }) {
     <span
       className={`inline-block rounded-full px-2.5 py-0.5 text-[0.75rem] font-medium ${CONFIDENCE_STYLES[level]}`}
     >
-      {level === "high" ? "High confidence" : level === "medium" ? "Medium confidence" : "Low confidence — review carefully"}
+      {level === "high" ? "High confidence" : level === "medium" ? "Medium confidence" : "Low — review carefully"}
     </span>
   );
 }
 
-// ---------- Scorecard Preview Table ----------
+// ---------- Editable Cell ----------
 
-function ScorecardTable({ tee }: { tee: LookupTee }) {
+function EditableCell({
+  value,
+  onChange,
+  className = "",
+}: {
+  value: number;
+  onChange: (v: number) => void;
+  className?: string;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(String(value));
+
+  if (editing) {
+    return (
+      <input
+        autoFocus
+        type="number"
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={() => {
+          const n = parseInt(draft, 10);
+          if (!isNaN(n) && n > 0) onChange(n);
+          setEditing(false);
+        }}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+          if (e.key === "Escape") setEditing(false);
+        }}
+        className={`w-10 text-center border-b border-accent bg-transparent outline-none text-[0.75rem] ${className}`}
+      />
+    );
+  }
+
+  return (
+    <span
+      onClick={() => {
+        setDraft(String(value));
+        setEditing(true);
+      }}
+      className={`cursor-pointer hover:bg-accent/10 rounded px-0.5 ${className}`}
+      title="Click to edit"
+    >
+      {value}
+    </span>
+  );
+}
+
+// ---------- Editable Scorecard Table ----------
+
+function EditableScorecardTable({
+  tee,
+  onHoleChange,
+}: {
+  tee: LookupTee;
+  onHoleChange: (holeNum: number, field: keyof LookupHole, value: number) => void;
+}) {
   const front9 = tee.holes.filter((h) => h.hole_number <= 9);
   const back9 = tee.holes.filter((h) => h.hole_number > 9);
 
@@ -83,42 +140,28 @@ function ScorecardTable({ tee }: { tee: LookupTee }) {
           </thead>
           <tbody>
             <tr>
-              <td className="px-1.5 py-1 font-medium text-secondary border-b border-divider">
-                Par
-              </td>
+              <td className="px-1.5 py-1 font-medium text-secondary border-b border-divider">Par</td>
               {holes.map((h) => (
-                <td
-                  key={h.hole_number}
-                  className="px-1.5 py-1 text-center border-b border-divider"
-                >
-                  {h.par}
+                <td key={h.hole_number} className="px-1.5 py-1 text-center border-b border-divider">
+                  <EditableCell value={h.par} onChange={(v) => onHoleChange(h.hole_number, "par", v)} />
                 </td>
               ))}
-              <td className="px-1.5 py-1 text-center font-semibold border-b border-divider">
-                {totalPar}
-              </td>
+              <td className="px-1.5 py-1 text-center font-semibold border-b border-divider">{totalPar}</td>
             </tr>
             <tr>
-              <td className="px-1.5 py-1 font-medium text-secondary border-b border-divider">
-                Yds
-              </td>
+              <td className="px-1.5 py-1 font-medium text-secondary border-b border-divider">Yds</td>
               {holes.map((h) => (
-                <td
-                  key={h.hole_number}
-                  className="px-1.5 py-1 text-center border-b border-divider"
-                >
-                  {h.yardage}
+                <td key={h.hole_number} className="px-1.5 py-1 text-center border-b border-divider">
+                  <EditableCell value={h.yardage} onChange={(v) => onHoleChange(h.hole_number, "yardage", v)} />
                 </td>
               ))}
-              <td className="px-1.5 py-1 text-center font-semibold border-b border-divider">
-                {totalYds}
-              </td>
+              <td className="px-1.5 py-1 text-center font-semibold border-b border-divider">{totalYds}</td>
             </tr>
             <tr>
               <td className="px-1.5 py-1 font-medium text-secondary">SI</td>
               {holes.map((h) => (
                 <td key={h.hole_number} className="px-1.5 py-1 text-center">
-                  {h.si}
+                  <EditableCell value={h.si} onChange={(v) => onHoleChange(h.hole_number, "si", v)} />
                 </td>
               ))}
               <td />
@@ -130,15 +173,7 @@ function ScorecardTable({ tee }: { tee: LookupTee }) {
   };
 
   return (
-    <div className="flex flex-col gap-2 p-4 rounded-lg border border-divider bg-white">
-      <div className="flex items-center justify-between">
-        <span className="text-[0.9375rem] font-semibold text-text">
-          {tee.tee_name} Tee
-        </span>
-        <span className="text-[0.8125rem] text-secondary">
-          Par {tee.par_total}
-        </span>
-      </div>
+    <div className="flex flex-col gap-2">
       {renderHalf(front9, "Out")}
       {renderHalf(back9, "In")}
     </div>
@@ -147,7 +182,7 @@ function ScorecardTable({ tee }: { tee: LookupTee }) {
 
 // ---------- Main Component ----------
 
-/** 在线搜索球场记分卡 → 预览 → 保存 */
+/** 在线搜索球场记分卡 → 可编辑预览 → 查重 → 保存/合并 */
 export function CourseLookup() {
   const router = useRouter();
   const [name, setName] = useState("");
@@ -155,6 +190,13 @@ export function CourseLookup() {
   const [state, setState] = useState<LookupState>("idle");
   const [result, setResult] = useState<LookupResult | null>(null);
   const [error, setError] = useState("");
+
+  // 查重状态
+  const [duplicates, setDuplicates] = useState<Course[] | null>(null);
+  // 已有 course 的 tee（用于 merge 时去重）
+  const [existingTees, setExistingTees] = useState<CourseTee[]>([]);
+  // 选择合并的目标 course
+  const [mergeTarget, setMergeTarget] = useState<Course | null>(null);
 
   // ---- 搜索 ----
   async function handleSearch() {
@@ -165,6 +207,8 @@ export function CourseLookup() {
 
     setError("");
     setResult(null);
+    setDuplicates(null);
+    setMergeTarget(null);
     setState("searching");
 
     try {
@@ -182,13 +226,15 @@ export function CourseLookup() {
         throw new Error(data.error || "Search failed");
       }
 
-      const data = (await res.json()) as LookupResult;
+      const data = await res.json();
 
       if (!data.tees || data.tees.length === 0) {
         throw new Error("No tee data found for this course.");
       }
 
-      setResult(data);
+      // 给每个 tee 加 selected 标记
+      const tees = data.tees.map((t: LookupTee) => ({ ...t, selected: true }));
+      setResult({ ...data, tees });
       setState("preview");
     } catch (err) {
       setError((err as Error).message);
@@ -196,32 +242,107 @@ export function CourseLookup() {
     }
   }
 
-  // ---- 保存 ----
-  async function handleSave() {
+  // ---- 编辑洞数据 ----
+  function handleHoleChange(teeIdx: number, holeNum: number, field: keyof LookupHole, value: number) {
     if (!result) return;
+    setResult({
+      ...result,
+      tees: result.tees.map((tee, i) => {
+        if (i !== teeIdx) return tee;
+        const holes = tee.holes.map((h) =>
+          h.hole_number === holeNum ? { ...h, [field]: value } : h
+        );
+        return { ...tee, holes, par_total: holes.reduce((s, h) => s + h.par, 0) };
+      }),
+    });
+  }
+
+  // ---- 切换 tee 选中 ----
+  function toggleTee(teeIdx: number) {
+    if (!result) return;
+    setResult({
+      ...result,
+      tees: result.tees.map((tee, i) =>
+        i === teeIdx ? { ...tee, selected: !tee.selected } : tee
+      ),
+    });
+  }
+
+  // ---- 选择合并到已有 course ----
+  async function handleSelectMerge(course: Course) {
+    setMergeTarget(course);
+    setDuplicates(null);
+    // 获取已有 tee 列表用于去重
+    try {
+      const res = await fetch(`/api/courses/${course.id}/tees`);
+      if (res.ok) {
+        const tees = (await res.json()) as CourseTee[];
+        setExistingTees(tees);
+        // 自动反选已存在的 tee
+        if (result) {
+          setResult({
+            ...result,
+            tees: result.tees.map((t) => ({
+              ...t,
+              selected: !tees.some(
+                (et) => et.tee_name.toLowerCase() === t.tee_name.toLowerCase()
+              ),
+            })),
+          });
+        }
+      }
+    } catch {
+      // 获取失败不影响
+    }
+  }
+
+  // ---- 保存 ----
+  async function handleSave(forceNew = false) {
+    if (!result) return;
+
+    const selectedTees = result.tees.filter((t) => t.selected);
+    if (selectedTees.length === 0) {
+      setError("Please select at least one tee to save.");
+      return;
+    }
+
     setState("saving");
     setError("");
 
     try {
-      // 1. 创建球场（force=true 跳过查重，因为用户已确认）
-      const courseRes = await fetch("/api/courses", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: result.course_name,
-          location_text: result.location || undefined,
-          force: true,
-        }),
-      });
+      let courseId: string;
 
-      if (!courseRes.ok) throw new Error("Failed to create course");
-      const course = (await courseRes.json()) as Course;
+      if (mergeTarget && !forceNew) {
+        // 合并到已有 course
+        courseId = mergeTarget.id;
+      } else {
+        // 创建新 course（带查重）
+        const courseRes = await fetch("/api/courses", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: result.course_name,
+            location_text: result.location || undefined,
+            force: forceNew,
+          }),
+        });
 
-      // 2. 创建所有 tee + holes
-      let firstTee: CourseTee | null = null;
+        if (courseRes.status === 409) {
+          // 发现重复
+          const data = await courseRes.json();
+          setDuplicates(data.duplicates as Course[]);
+          setState("preview");
+          return;
+        }
 
-      for (const tee of result.tees) {
-        const teeRes = await fetch(`/api/courses/${course.id}/tees`, {
+        if (!courseRes.ok) throw new Error("Failed to create course");
+        const course = (await courseRes.json()) as Course;
+        courseId = course.id;
+      }
+
+      // 创建选中的 tee + holes
+      for (const tee of selectedTees) {
+        const teeRes = await fetch(`/api/courses/${courseId}/tees`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -234,11 +355,9 @@ export function CourseLookup() {
         if (!teeRes.ok) throw new Error(`Failed to create ${tee.tee_name} tee`);
         const createdTee = (await teeRes.json()) as CourseTee;
 
-        if (!firstTee) firstTee = createdTee;
-
-        // 3. 批量 upsert holes
+        // 批量 upsert holes
         const holesRes = await fetch(
-          `/api/courses/${course.id}/tees/${createdTee.id}/holes`,
+          `/api/courses/${courseId}/tees/${createdTee.id}/holes`,
           {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
@@ -256,8 +375,7 @@ export function CourseLookup() {
         if (!holesRes.ok) throw new Error(`Failed to save holes for ${tee.tee_name} tee`);
       }
 
-      // 跳转到球场详情页
-      router.push(`/courses/${course.id}`);
+      router.push(`/courses/${courseId}`);
     } catch (err) {
       setError((err as Error).message);
       setState("preview");
@@ -268,6 +386,9 @@ export function CourseLookup() {
   function handleReset() {
     setResult(null);
     setError("");
+    setDuplicates(null);
+    setMergeTarget(null);
+    setExistingTees([]);
     setState("idle");
   }
 
@@ -310,55 +431,130 @@ export function CourseLookup() {
               <ConfidenceBadge level={result.confidence} />
             </div>
             {result.location && (
-              <p className="text-[0.875rem] text-secondary">
-                {result.location}
+              <p className="text-[0.875rem] text-secondary">{result.location}</p>
+            )}
+            {mergeTarget && (
+              <p className="text-[0.8125rem] text-accent font-medium">
+                Adding tees to: {mergeTarget.name}
               </p>
             )}
-            {result.source_url && (
-              <p className="text-[0.75rem] text-secondary">
-                Source:{" "}
-                <a
-                  href={result.source_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="underline hover:text-accent"
-                >
-                  {new URL(result.source_url).hostname}
-                </a>
-              </p>
-            )}
+            <p className="text-[0.75rem] text-secondary">
+              Tap any value to edit before saving.
+            </p>
           </div>
 
-          <SectionTitle>Scorecard Preview</SectionTitle>
+          {/* 查重警告 */}
+          {duplicates && (
+            <div className="flex flex-col gap-3">
+              <div className="rounded-lg border border-yellow-300 bg-yellow-50 p-4">
+                <p className="text-[0.9375rem] font-medium text-yellow-800">
+                  Similar courses found
+                </p>
+                <p className="text-[0.8125rem] text-yellow-700 mt-1">
+                  Add tees to an existing course, or create a new one.
+                </p>
+              </div>
+              {duplicates.map((course) => (
+                <Card key={course.id} className="flex items-center justify-between">
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-[0.9375rem] font-medium text-text">{course.name}</span>
+                    {course.location_text && (
+                      <span className="text-[0.8125rem] text-secondary">{course.location_text}</span>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => handleSelectMerge(course)}
+                    className="text-[0.8125rem] text-accent font-medium hover:underline ml-4 whitespace-nowrap cursor-pointer"
+                  >
+                    Add tees here
+                  </button>
+                </Card>
+              ))}
+              <Button variant="secondary" onClick={() => handleSave(true)}>
+                Create new course anyway
+              </Button>
+            </div>
+          )}
 
+          <SectionTitle>
+            Tees {mergeTarget ? "(select tees to add)" : ""}
+          </SectionTitle>
+
+          {/* 已有 tee 提示 */}
+          {existingTees.length > 0 && (
+            <p className="text-[0.8125rem] text-secondary -mt-3">
+              Existing tees: {existingTees.map((t) => t.tee_name).join(", ")}
+            </p>
+          )}
+
+          {/* 可编辑的 tee 列表 */}
           <div className="flex flex-col gap-4">
-            {result.tees.map((tee) => (
-              <ScorecardTable key={tee.tee_name} tee={tee} />
-            ))}
+            {result.tees.map((tee, teeIdx) => {
+              const alreadyExists = existingTees.some(
+                (et) => et.tee_name.toLowerCase() === tee.tee_name.toLowerCase()
+              );
+              return (
+                <div
+                  key={tee.tee_name}
+                  className={`rounded-lg border p-4 transition-opacity ${
+                    tee.selected ? "border-divider bg-white" : "border-divider/50 bg-gray-50 opacity-60"
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={tee.selected}
+                        onChange={() => toggleTee(teeIdx)}
+                        className="w-4 h-4 accent-accent"
+                      />
+                      <span className="text-[0.9375rem] font-semibold text-text">
+                        {tee.tee_name} Tee
+                      </span>
+                      {alreadyExists && (
+                        <span className="text-[0.6875rem] text-yellow-700 bg-yellow-100 rounded px-1.5 py-0.5">
+                          already exists
+                        </span>
+                      )}
+                    </label>
+                    <span className="text-[0.8125rem] text-secondary">Par {tee.par_total}</span>
+                  </div>
+                  {tee.selected && (
+                    <EditableScorecardTable
+                      tee={tee}
+                      onHoleChange={(holeNum, field, value) =>
+                        handleHoleChange(teeIdx, holeNum, field, value)
+                      }
+                    />
+                  )}
+                </div>
+              );
+            })}
           </div>
 
           {result.confidence === "low" && (
             <p className="text-[0.8125rem] text-yellow-700 bg-yellow-50 rounded-lg p-3">
-              Low confidence — the data may be inaccurate. Please review each hole carefully before saving,
-              or use &quot;Add Manually&quot; instead.
+              Low confidence — please review and edit values before saving.
             </p>
           )}
 
-          <div className="flex gap-3">
-            <Button onClick={handleSave}>
-              Save Course
-            </Button>
-            <Button variant="secondary" onClick={handleReset}>
-              Search Again
-            </Button>
-          </div>
+          {!duplicates && (
+            <div className="flex gap-3">
+              <Button onClick={() => handleSave(false)}>
+                {mergeTarget ? "Add Selected Tees" : "Save Course"}
+              </Button>
+              <Button variant="secondary" onClick={handleReset}>
+                Search Again
+              </Button>
+            </div>
+          )}
         </>
       )}
 
       {/* 保存中 */}
       {state === "saving" && (
         <p className="text-[0.9375rem] text-secondary">
-          Saving course and {result?.tees.length} tee{result && result.tees.length > 1 ? "s" : ""}...
+          Saving...
         </p>
       )}
 
