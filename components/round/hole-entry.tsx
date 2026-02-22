@@ -143,7 +143,10 @@ export const HoleEntry = forwardRef<HoleEntryHandle, HoleEntryProps>(
 
     // API 保存
     const doApiSave = useCallback(async () => {
-      if (!canApiSave) return false;
+      if (!canApiSave) {
+        console.warn(`[VibeCaddie] Hole ${holeNumber}: skip API save — teeClub="${teeClub}", teeResult="${teeResult}"`);
+        return false;
+      }
 
       setSaving(true);
       try {
@@ -166,10 +169,14 @@ export const HoleEntry = forwardRef<HoleEntryHandle, HoleEntryProps>(
           onSave?.(data);
           setSaved(true);
           setTimeout(() => setSaved(false), 2000);
+          console.warn(`[VibeCaddie] Hole ${holeNumber}: API save OK`);
           return true;
+        } else {
+          const errBody = await res.text().catch(() => "");
+          console.error(`[VibeCaddie] Hole ${holeNumber}: API save FAILED (${res.status})`, errBody);
         }
-      } catch {
-        // 静默失败
+      } catch (err) {
+        console.error(`[VibeCaddie] Hole ${holeNumber}: API save ERROR`, err);
       } finally {
         setSaving(false);
       }
@@ -179,7 +186,14 @@ export const HoleEntry = forwardRef<HoleEntryHandle, HoleEntryProps>(
     // ref 暴露的 save：总是保存本地状态，能存 API 就存
     useImperativeHandle(ref, () => ({
       save: async () => {
-        onLocalChange?.(buildLocal());
+        const local = buildLocal();
+        console.warn(`[VibeCaddie] save() hole ${local.hole_number}:`, {
+          tee_club: local.tee_club,
+          tee_result: local.tee_result,
+          clubs: local.clubs_used,
+          score: local.score,
+        });
+        onLocalChange?.(local);
         await doApiSave();
       },
     }), [buildLocal, doApiSave, onLocalChange]);

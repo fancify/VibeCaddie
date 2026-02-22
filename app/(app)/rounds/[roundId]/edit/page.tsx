@@ -118,11 +118,23 @@ export default function EditRoundPage() {
 
     // 2. 从 ref 读取最新本地数据
     const latestLocal = localHolesDataRef.current;
+    const latestApi = holesDataRef.current;
+
+    console.warn("[VibeCaddie] handleFinish — localHolesData size:", latestLocal.size);
+    console.warn("[VibeCaddie] handleFinish — holesData (API) size:", latestApi.size);
+    for (const [num, local] of latestLocal.entries()) {
+      console.warn(`[VibeCaddie]   Hole ${num}: tee_club="${local.tee_club}", tee_result="${local.tee_result}", score=${local.score}`);
+    }
 
     // 3. 全量 upsert 所有有数据的洞（API 做 ON CONFLICT UPDATE，重复保存无害）
-    const savePromises: Promise<void>[] = [];
+    const savePromises: Promise<{ hole: number; ok: boolean; status?: number }>[] = [];
+    const skipped: number[] = [];
+
     for (const [, local] of latestLocal.entries()) {
-      if (!local.tee_club || !local.tee_result) continue;
+      if (!local.tee_club || !local.tee_result) {
+        skipped.push(local.hole_number);
+        continue;
+      }
       savePromises.push(
         fetch(`/api/rounds/${roundId}/holes`, {
           method: "PUT",
@@ -136,17 +148,30 @@ export default function EditRoundPage() {
             putts: local.putts,
             gir: local.gir,
           }),
-        }).then(() => {})
+        }).then(
+          (res) => ({ hole: local.hole_number, ok: res.ok, status: res.status }),
+          () => ({ hole: local.hole_number, ok: false, status: 0 })
+        )
       );
     }
-    await Promise.all(savePromises);
+
+    const results = await Promise.all(savePromises);
+    const failed = results.filter((r) => !r.ok);
+
+    if (skipped.length > 0) {
+      console.warn(`[VibeCaddie] SKIPPED holes (missing club/result): ${skipped.join(", ")}`);
+    }
+    if (failed.length > 0) {
+      console.error(`[VibeCaddie] FAILED holes:`, failed);
+    }
+    console.warn(`[VibeCaddie] Batch save: ${results.length - failed.length}/${results.length} OK, ${skipped.length} skipped`);
 
     // 4. 重新计算总分
     let totalScore = 0;
     let hasScores = false;
-    const allNums = new Set([...holesDataRef.current.keys(), ...latestLocal.keys()]);
+    const allNums = new Set([...latestApi.keys(), ...latestLocal.keys()]);
     for (const num of allNums) {
-      const s = holesDataRef.current.get(num)?.score ?? latestLocal.get(num)?.score;
+      const s = latestApi.get(num)?.score ?? latestLocal.get(num)?.score;
       if (s !== null && s !== undefined) {
         totalScore += s;
         hasScores = true;
