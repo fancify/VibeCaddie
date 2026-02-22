@@ -178,23 +178,18 @@ function NewRoundContent() {
       console.warn(`[VibeCaddie]   Hole ${num}: tee_club="${local.tee_club}", tee_result="${local.tee_result}", score=${local.score}`);
     }
 
-    // 3. 全量 upsert 所有有数据的洞（API 做 ON CONFLICT UPDATE，重复保存无害）
+    // 3. 全量 upsert 所有有数据的洞（API 会为空 tee_club/tee_result 提供默认值）
     const savePromises: Promise<{ hole: number; ok: boolean; status?: number }>[] = [];
-    const skipped: number[] = [];
 
     for (const [, local] of latestLocal.entries()) {
-      if (!local.tee_club || !local.tee_result) {
-        skipped.push(local.hole_number);
-        continue;
-      }
       savePromises.push(
         fetch(`/api/rounds/${roundId}/holes`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             hole_number: local.hole_number,
-            tee_club: local.tee_club,
-            tee_result: local.tee_result,
+            tee_club: local.tee_club || undefined,
+            tee_result: local.tee_result || undefined,
             clubs_used: local.clubs_used.length > 0 ? local.clubs_used : null,
             score: local.score,
             putts: local.putts,
@@ -210,13 +205,10 @@ function NewRoundContent() {
     const results = await Promise.all(savePromises);
     const failed = results.filter((r) => !r.ok);
 
-    if (skipped.length > 0) {
-      console.warn(`[VibeCaddie] SKIPPED holes (missing club/result): ${skipped.join(", ")}`);
-    }
     if (failed.length > 0) {
       console.error(`[VibeCaddie] FAILED holes:`, failed);
     }
-    console.warn(`[VibeCaddie] Batch save: ${results.length - failed.length}/${results.length} OK, ${skipped.length} skipped`);
+    console.warn(`[VibeCaddie] Batch save: ${results.length - failed.length}/${results.length} OK`);
 
     // 4. 计算总杆数
     let totalScore = 0;

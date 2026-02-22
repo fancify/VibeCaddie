@@ -24,26 +24,31 @@ export async function PUT(
     const body = await request.json();
     const { hole_number, tee_club, tee_result, clubs_used, score, putts, gir } = body as {
       hole_number: number;
-      tee_club: string;
-      tee_result: "FW" | "L" | "R" | "PEN";
+      tee_club?: string;
+      tee_result?: string;
       clubs_used?: string[];
       score?: number;
       putts?: number;
       gir?: boolean;
     };
 
-    if (!hole_number || !tee_club || !tee_result) {
+    if (!hole_number) {
       return NextResponse.json(
-        { error: "hole_number, tee_club, and tee_result are required" },
+        { error: "hole_number is required" },
         { status: 400 }
       );
     }
 
+    // 允许空值，用默认值填充（DB 要求 NOT NULL）
+    const safeTeeClub = tee_club || "-";
+    const validResults = ["FW", "L", "R", "PEN"];
+    const safeTeeResult = (tee_result && validResults.includes(tee_result) ? tee_result : "FW") as "FW" | "L" | "R" | "PEN";
+
     const hole = await upsertRoundHole({
       round_id: roundId,
       hole_number,
-      tee_club,
-      tee_result,
+      tee_club: safeTeeClub,
+      tee_result: safeTeeResult,
       clubs_used,
       score,
       putts,

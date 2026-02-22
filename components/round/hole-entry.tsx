@@ -138,16 +138,8 @@ export const HoleEntry = forwardRef<HoleEntryHandle, HoleEntryProps>(
       gir,
     }), [holeNumber, clubsUsed, teeResult, penaltyCount, bunker, water, score, putts, gir]);
 
-    // 能否进行 API 保存（DB 要求 tee_club + tee_result 非空）
-    const canApiSave = !!teeClub && !!teeResult;
-
-    // API 保存
+    // API 保存 — 总是保存，API 端会为空值提供默认值
     const doApiSave = useCallback(async () => {
-      if (!canApiSave) {
-        console.warn(`[VibeCaddie] Hole ${holeNumber}: skip API save — teeClub="${teeClub}", teeResult="${teeResult}"`);
-        return false;
-      }
-
       setSaving(true);
       try {
         const res = await fetch(`/api/rounds/${roundId}/holes`, {
@@ -155,8 +147,8 @@ export const HoleEntry = forwardRef<HoleEntryHandle, HoleEntryProps>(
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             hole_number: holeNumber,
-            tee_club: teeClub,
-            tee_result: teeResult,
+            tee_club: teeClub || undefined,
+            tee_result: teeResult || undefined,
             clubs_used: clubsUsed.length > 0 ? clubsUsed : null,
             score,
             putts,
@@ -169,7 +161,6 @@ export const HoleEntry = forwardRef<HoleEntryHandle, HoleEntryProps>(
           onSave?.(data);
           setSaved(true);
           setTimeout(() => setSaved(false), 2000);
-          console.warn(`[VibeCaddie] Hole ${holeNumber}: API save OK`);
           return true;
         } else {
           const errBody = await res.text().catch(() => "");
@@ -181,7 +172,7 @@ export const HoleEntry = forwardRef<HoleEntryHandle, HoleEntryProps>(
         setSaving(false);
       }
       return false;
-    }, [roundId, holeNumber, teeClub, teeResult, clubsUsed, score, putts, gir, canApiSave, onSave]);
+    }, [roundId, holeNumber, teeClub, teeResult, clubsUsed, score, putts, gir, onSave]);
 
     // ref 暴露的 save：总是保存本地状态，能存 API 就存
     useImperativeHandle(ref, () => ({
