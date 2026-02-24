@@ -1,5 +1,5 @@
 // 球场记分卡在线查找服务
-// DuckDuckGo 搜索 + LLM 结构化提取
+// Google Custom Search API + LLM 结构化提取
 
 import { callLLM, SCORECARD_EXTRACTION_PROMPT } from './llm';
 
@@ -10,12 +10,15 @@ export interface LookupHole {
   par: number;
   yardage: number;
   si: number;
+  hole_note?: string;
 }
 
 export interface LookupTee {
   tee_name: string;
   tee_color: string;
   par_total: number;
+  course_rating?: number;
+  slope_rating?: number;
   holes: LookupHole[];
 }
 
@@ -55,71 +58,112 @@ function stripHtmlToText(html: string): string {
     .trim();
 }
 
-// ---------- Web Search ----------
+// ---------- Google Custom Search ----------
 
-/** 通过 DuckDuckGo Lite 搜索球场记分卡，返回前两个结果页面的文本 */
+interface SearchItem {
+  link: string;
+  title: string;
+  snippet: string;
+}
+
+/** 调用 Google Custom Search API，返回结果列表 */
+async function googleSearch(query: string, numResults = 3): Promise<SearchItem[]> {
+  const apiKey = process.env.GOOGLE_SEARCH_API_KEY;
+  const cx = process.env.GOOGLE_SEARCH_ENGINE_ID;
+
+  if (!apiKey || !cx) {
+    console.warn('[scorecard-lookup] GOOGLE_SEARCH_API_KEY or GOOGLE_SEARCH_ENGINE_ID not set');
+    return [];
+  }
+
+  const url =
+    `https://www.googleapis.com/customsearch/v1` +
+    `?key=${encodeURIComponent(apiKey)}` +
+    `&cx=${encodeURIComponent(cx)}` +
+    `&q=${encodeURIComponent(query)}` +
+    `&num=${numResults}`;
+
+  try {
+    const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
+    if (!res.ok) {
+      console.warn(`[scorecard-lookup] Google Search API error: ${res.status}`);
+      return [];
+    }
+    const data = await res.json();
+    return (data.items ?? []) as SearchItem[];
+  } catch {
+    return [];
+  }
+}
+
+/** 抓取单个页面并返回纯文本（最多 15000 字符） */
+async function fetchPageText(url: string): Promise<string> {
+  try {
+    const res = await fetch(url, {
+      headers: { 'User-Agent': 'VibeCaddie/1.0 (golf scorecard lookup)' },
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!res.ok) return '';
+    const html = await res.text();
+    return stripHtmlToText(html).slice(0, 15000);
+  } catch {
+    return '';
+  }
+}
+
+/** 双路搜索：记分卡数据 + 洞介绍文章，合并内容后返回 */
 async function fetchScorecardContent(
   name: string,
   location?: string,
 ): Promise<{ text: string; sourceUrl?: string }> {
-  const searchQuery = `${name} ${location || ''} golf scorecard hole by hole yardage`.trim();
-  const ddgUrl = `https://lite.duckduckgo.com/lite/?q=${encodeURIComponent(searchQuery)}`;
+  const loc = location || '';
 
-  try {
-    const searchRes = await fetch(ddgUrl, {
-      headers: { 'User-Agent': 'VibeCaddie/1.0 (golf scorecard lookup)' },
-      signal: AbortSignal.timeout(8000),
-    });
+  // 两条并行搜索
+  const [scorecardItems, guideItems] = await Promise.all([
+    googleSearch(
+      `${name} ${loc} golf scorecard hole by hole yardage course rating slope rating`.trim(),
+      3,
+    ),
+    googleSearch(
+      `${name} hole by hole guide review`.trim(),
+      3,
+    ),
+  ]);
 
-    if (!searchRes.ok) return { text: '' };
+  const allItems = [...scorecardItems, ...guideItems];
+  if (allItems.length === 0) return { text: '' };
 
-    const searchHtml = await searchRes.text();
+  const sourceUrl = allItems[0]?.link;
 
-    // 从 DuckDuckGo Lite 结果中提取链接
-    const linkRegex = /href="(https?:\/\/[^"]+)"/gi;
-    const urls: string[] = [];
-    let match;
-    while ((match = linkRegex.exec(searchHtml)) !== null) {
-      const url = match[1];
-      // 过滤掉 DuckDuckGo 自身的链接
-      if (!url.includes('duckduckgo.com') && !url.includes('duck.co')) {
-        urls.push(url);
-      }
-      if (urls.length >= 2) break;
-    }
+  // 去重 URL，最多取前 5 条
+  const uniqueUrls = [...new Set(allItems.map((i) => i.link))].slice(0, 5);
 
-    if (urls.length === 0) return { text: '' };
+  // 搜索摘要（轻量但往往包含关键数字）
+  const snippets = allItems
+    .map((i) => `[${i.title}]\n${i.snippet}`)
+    .join('\n\n');
 
-    // 并行获取前两个结果页面
-    const pageTexts = await Promise.allSettled(
-      urls.map(async (url) => {
-        const res = await fetch(url, {
-          headers: { 'User-Agent': 'VibeCaddie/1.0 (golf scorecard lookup)' },
-          signal: AbortSignal.timeout(8000),
-        });
-        if (!res.ok) return '';
-        const html = await res.text();
-        // 只取前 15000 字符避免 token 过长
-        return stripHtmlToText(html).slice(0, 15000);
-      }),
-    );
+  // 并行抓取前 3 个页面全文
+  const topUrls = uniqueUrls.slice(0, 3);
+  const pageResults = await Promise.allSettled(topUrls.map(fetchPageText));
 
-    const combinedText = pageTexts
-      .filter((r): r is PromiseFulfilledResult<string> => r.status === 'fulfilled')
-      .map((r) => r.value)
-      .filter(Boolean)
-      .join('\n\n---\n\n');
+  const pageTexts = pageResults
+    .filter((r): r is PromiseFulfilledResult<string> => r.status === 'fulfilled')
+    .map((r) => r.value)
+    .filter(Boolean);
 
-    return { text: combinedText, sourceUrl: urls[0] };
-  } catch {
-    // 网络错误，降级到纯 LLM
-    return { text: '' };
-  }
+  const combinedText = [
+    '=== SEARCH SNIPPETS ===',
+    snippets,
+    ...pageTexts.map((t, i) => `=== PAGE ${i + 1}: ${topUrls[i]} ===\n${t}`),
+  ].join('\n\n');
+
+  return { text: combinedText, sourceUrl };
 }
 
 // ---------- LLM Extraction ----------
 
-/** 调用 LLM 提取结构化记分卡数据 */
+/** 调用 LLM 提取结构化记分卡数据（含洞注释、球场评级） */
 async function extractScorecardFromLLM(
   name: string,
   location?: string,
@@ -135,7 +179,7 @@ async function extractScorecardFromLLM(
   }
 
   const response = await callLLM(SCORECARD_EXTRACTION_PROMPT, userPrompt, {
-    max_tokens: 4000,
+    max_tokens: 6000,
     temperature: 0,
   });
 
@@ -203,6 +247,18 @@ function validateScorecardData(data: LookupResult): ValidationError[] {
       issues.push('Stroke index values must be unique (1-18)');
     }
 
+    // course_rating / slope_rating 范围检查（有值时）
+    if (tee.course_rating !== undefined) {
+      if (tee.course_rating < 55 || tee.course_rating > 80) {
+        issues.push(`course_rating ${tee.course_rating} out of reasonable range (55-80)`);
+      }
+    }
+    if (tee.slope_rating !== undefined) {
+      if (tee.slope_rating < 55 || tee.slope_rating > 155) {
+        issues.push(`slope_rating ${tee.slope_rating} out of reasonable range (55-155)`);
+      }
+    }
+
     if (issues.length > 0) {
       errors.push({ tee: tee.tee_name, issues });
     }
@@ -213,12 +269,12 @@ function validateScorecardData(data: LookupResult): ValidationError[] {
 
 // ---------- Main Entry ----------
 
-/** 查找球场记分卡：web 搜索 + LLM 提取 + 验证 */
+/** 查找球场记分卡：Google 搜索 + 页面抓取 + LLM 提取 + 验证 */
 export async function lookupCourseScorecard(
   name: string,
   location?: string,
 ): Promise<LookupResult> {
-  // 1. 搜索 web 内容
+  // 1. 搜索 + 抓取 web 内容
   const { text: webContent, sourceUrl } = await fetchScorecardContent(name, location);
 
   // 2. LLM 提取结构化数据

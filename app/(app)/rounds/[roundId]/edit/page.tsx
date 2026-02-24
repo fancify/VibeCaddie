@@ -126,33 +126,64 @@ export default function EditRoundPage() {
       console.warn(`[VibeCaddie]   Hole ${num}: tee_club="${local.tee_club}", tee_result="${local.tee_result}", approach="${local.approach_distance}/${local.approach_direction}", score=${local.score}`);
     }
 
-    // 3. 全量 upsert 所有有数据的洞（API 会为空 tee_club/tee_result 提供默认值）
+    // 3. 全量 upsert 所有有数据的洞（local 优先，API 数据兜底确保未访问的洞不丢失）
     const savePromises: Promise<{ hole: number; ok: boolean; status?: number }>[] = [];
+    const allSaveNums = new Set([...latestLocal.keys(), ...latestApi.keys()]);
 
-    for (const [, local] of latestLocal.entries()) {
-      savePromises.push(
-        fetch(`/api/rounds/${roundId}/holes`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            hole_number:    local.hole_number,
-            tee_club:          local.tee_club          || undefined,
-            tee_result:        local.tee_result        || undefined,
-            approach_club:     local.approach_club     || undefined,
-            approach_distance: local.approach_distance || undefined,
-            approach_direction:local.approach_direction || undefined,
-            recovery_club:     local.recovery_club     || undefined,
-            score:          local.score,
-            putts:          local.putts,
-            bunker_count:   local.bunker_count,
-            water_count:    local.water_count,
-            penalty_count:  local.penalty_count,
-          }),
-        }).then(
-          (res) => ({ hole: local.hole_number, ok: res.ok, status: res.status }),
-          () => ({ hole: local.hole_number, ok: false, status: 0 })
-        )
-      );
+    for (const num of allSaveNums) {
+      const local = latestLocal.get(num);
+      const api = latestApi.get(num);
+
+      if (local) {
+        savePromises.push(
+          fetch(`/api/rounds/${roundId}/holes`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              hole_number:       local.hole_number,
+              tee_club:          local.tee_club          || undefined,
+              tee_result:        local.tee_result        || undefined,
+              approach_club:     local.approach_club     || undefined,
+              approach_distance: local.approach_distance || undefined,
+              approach_direction:local.approach_direction || undefined,
+              recovery_club:     local.recovery_club     || undefined,
+              score:             local.score,
+              putts:             local.putts,
+              bunker_count:      local.bunker_count,
+              water_count:       local.water_count,
+              penalty_count:     local.penalty_count,
+            }),
+          }).then(
+            (res) => ({ hole: num, ok: res.ok, status: res.status }),
+            () => ({ hole: num, ok: false, status: 0 })
+          )
+        );
+      } else if (api) {
+        // 本次未访问的洞（只在初始 API 加载中）— 重新保存以防丢失
+        savePromises.push(
+          fetch(`/api/rounds/${roundId}/holes`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              hole_number:       api.hole_number,
+              tee_club:          api.tee_club          || undefined,
+              tee_result:        api.tee_result        || undefined,
+              approach_club:     api.approach_club     || undefined,
+              approach_distance: api.approach_distance || undefined,
+              approach_direction:api.approach_direction || undefined,
+              recovery_club:     api.recovery_club     || undefined,
+              score:             api.score             ?? undefined,
+              putts:             api.putts             ?? undefined,
+              bunker_count:      api.bunker_count      ?? 0,
+              water_count:       api.water_count       ?? 0,
+              penalty_count:     api.penalty_count     ?? 0,
+            }),
+          }).then(
+            (res) => ({ hole: num, ok: res.ok, status: res.status }),
+            () => ({ hole: num, ok: false, status: 0 })
+          )
+        );
+      }
     }
 
     const results = await Promise.all(savePromises);

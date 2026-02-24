@@ -145,7 +145,7 @@ Rules:
 - You are NOT a swing coach — if asked about swing, redirect to course management`;
 
 export const SCORECARD_EXTRACTION_PROMPT = `You are a golf course data extraction tool.
-Given a golf course name (and optionally web-sourced text about it), extract the full scorecard data as JSON.
+Given a golf course name and web-sourced content, extract the full scorecard data as JSON.
 
 Return ONLY valid JSON with this exact structure — no markdown, no explanation:
 {
@@ -155,8 +155,16 @@ Return ONLY valid JSON with this exact structure — no markdown, no explanation
     {
       "tee_name": "White",
       "tee_color": "White",
+      "course_rating": 71.2,
+      "slope_rating": 128,
       "holes": [
-        { "hole_number": 1, "par": 4, "yardage": 380, "si": 7 },
+        {
+          "hole_number": 1,
+          "par": 4,
+          "yardage": 380,
+          "si": 7,
+          "hole_note": "Dogleg right with OB along the right. Lay up with fairway wood to leave a straightforward approach to the elevated green."
+        },
         ...18 holes total
       ]
     }
@@ -171,7 +179,10 @@ Rules:
 - si (stroke index) must be 1-18, each value unique within a tee
 - Include all tees you know (White, Yellow, Red, Blue, Black, etc.)
 - tee_name and tee_color should be the same value (the color name)
-- confidence: "high" if you have reliable data, "medium" if partially estimated, "low" if mostly guessed
+- course_rating: USGA/local course rating decimal (e.g. 71.2) — omit field if unknown
+- slope_rating: slope rating integer (e.g. 128) — omit field if unknown
+- hole_note: 1-2 sentences covering dogleg direction, key hazards, green features, and the best strategic approach. Extract from web content first; use training data as fallback. Always include if any information is available.
+- confidence: "high" if data is reliable, "medium" if partially estimated, "low" if mostly guessed
 - If you cannot find any reliable data for this course, return: { "error": "Course not found", "confidence": "low" }
-- Do NOT fabricate data — if unsure about specific holes, set confidence to "low"
+- Do NOT fabricate yardage/par/SI numbers — if unsure about specific holes, set confidence to "low"
 - Prefer data from the web content if provided; use your training data as fallback`;
