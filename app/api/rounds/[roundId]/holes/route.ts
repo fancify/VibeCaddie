@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getUserId } from "@/lib/auth/session";
-import { getRoundById, upsertRoundHole } from "@/lib/db/rounds";
+import { getRoundById, upsertRoundHole, getRoundHoles, updateRoundTotalScore } from "@/lib/db/rounds";
 
 interface RouteContext {
   params: Promise<{ roundId: string }>;
@@ -54,6 +54,14 @@ export async function PUT(
       putts,
       gir,
     });
+
+    // 自动重算总分
+    const allHoles = await getRoundHoles(roundId);
+    const holesWithScore = allHoles.filter(h => h.score !== null);
+    if (holesWithScore.length > 0) {
+      const totalScore = holesWithScore.reduce((sum, h) => sum + (h.score ?? 0), 0);
+      await updateRoundTotalScore(userId, roundId, totalScore);
+    }
 
     return NextResponse.json(hole);
   } catch (error) {

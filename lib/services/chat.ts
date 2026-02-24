@@ -1,15 +1,21 @@
 // Chat 消息处理服务 — 组装上下文后调用 LLM
 
-import { callLLM, CHAT_SYSTEM_PROMPT } from './llm';
+import { CHAT_SYSTEM_PROMPT } from './llm';
 import { getPlayerProfile } from '@/lib/db/players';
 import { getPlayerRounds, getRoundHoles } from '@/lib/db/rounds';
 import { getPlayerBriefings } from '@/lib/db/briefings';
 import { getRelevantKnowledge } from './knowledge';
 import type { RoundHole } from '@/lib/db/types';
 
+interface ChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
 export async function handleChatMessage(
   userId: string,
   message: string,
+  history?: ChatMessage[],
 ): Promise<string> {
   // 1. 并行获取球员上下文
   const [profile, rounds, briefings] = await Promise.all([
@@ -68,11 +74,60 @@ export async function handleChatMessage(
     contextPrompt += '\n';
   }
 
-  const fullPrompt = contextPrompt + `Player's question: ${message}`;
+  // 5. 构建多轮对话 messages
+  const systemPrompt = CHAT_SYSTEM_PROMPT + '\n\n' + contextPrompt;
 
-  // 5. 调用 LLM
-  const response = await callLLM(CHAT_SYSTEM_PROMPT, fullPrompt);
-  return response.content;
+  const llmMessages: Array<{ role: string; content: string }> = [];
+
+  // 加入历史对话（跳过 welcome message，最多保留最近 20 条）
+  if (history && history.length > 0) {
+    const recent = history.slice(-20);
+    for (const msg of recent) {
+      llmMessages.push({ role: msg.role, content: msg.content });
+    }
+  }
+
+  // 加入当前消息
+  if (message) {
+    llmMessages.push({ role: 'user', content: message });
+  }
+
+  // 6. 调用 LLM（多轮）
+  const apiKey = process.env.OPENROUTER_API_KEY;
+  if (!apiKey) throw new Error('OPENROUTER_API_KEY is not configured');
+
+  const model = process.env.OPENROUTER_MODEL || 'google/gemini-2.0-flash-001';
+
+  const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+      'HTTP-Referer': process.env.NEXTAUTH_URL || 'http://localhost:3000',
+      'X-Title': 'Vibe Caddie',
+    },
+    body: JSON.stringify({
+      model,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        ...llmMessages,
+      ],
+      max_tokens: 2000,
+      temperature: 0.7,
+    }),
+  });
+
+  if (!res.ok) {
+    const errorText = await res.text();
+    throw new Error(`OpenRouter API error: ${res.status} — ${errorText}`);
+  }
+
+  const data = await res.json();
+  if (!data.choices?.[0]?.message?.content) {
+    throw new Error('OpenRouter returned empty response');
+  }
+
+  return data.choices[0].message.content;
 }
 
 /**
