@@ -35,10 +35,12 @@ export async function POST(
   try {
     const { courseId } = await context.params;
     const body = await request.json();
-    const { tee_name, tee_color, par_total } = body as {
+    const { tee_name, tee_color, par_total, course_rating, slope_rating } = body as {
       tee_name: string;
       tee_color?: string;
       par_total: number;
+      course_rating?: number;
+      slope_rating?: number;
     };
 
     if (!tee_name || !tee_name.trim()) {
@@ -61,6 +63,8 @@ export async function POST(
       tee_name: tee_name.trim(),
       tee_color: tee_color?.trim() || undefined,
       par_total,
+      course_rating: course_rating ?? undefined,
+      slope_rating: slope_rating ?? undefined,
     });
     return NextResponse.json(tee, { status: 201 });
   } catch (error) {

@@ -122,37 +122,47 @@ export async function createCourseTee(data: {
   tee_name: string;
   tee_color?: string;
   par_total: number;
+  course_rating?: number;
+  slope_rating?: number;
 }): Promise<CourseTee> {
   const result = await query<CourseTee>(
-    `INSERT INTO course_tees (course_id, tee_name, tee_color, par_total)
-     VALUES ($1, $2, $3, $4)
+    `INSERT INTO course_tees (course_id, tee_name, tee_color, par_total, course_rating, slope_rating)
+     VALUES ($1, $2, $3, $4, $5, $6)
      RETURNING *`,
-    [data.course_id, data.tee_name, data.tee_color ?? null, data.par_total]
+    [data.course_id, data.tee_name, data.tee_color ?? null, data.par_total, data.course_rating ?? null, data.slope_rating ?? null]
   );
   return result.rows[0];
 }
 
 /**
- * 更新 tee 台信息（名称、par_total）
+ * 更新 tee 台信息（名称、par_total、course_rating、slope_rating）
  */
 export async function updateCourseTee(
   teeId: string,
-  data: { tee_name?: string; par_total?: number }
+  data: { tee_name?: string; par_total?: number; course_rating?: number | null; slope_rating?: number | null }
 ): Promise<CourseTee | null> {
   const fields: string[] = [];
   const values: unknown[] = [];
   let idx = 1;
 
   if (data.tee_name !== undefined) {
-    fields.push(`tee_name = $${idx}`);
+    fields.push(`tee_name = $${idx++}`);
     values.push(data.tee_name);
-    // tee_color 同步更新
-    fields.push(`tee_color = $${idx}`);
-    idx++;
+    // tee_color 与 tee_name 同步
+    fields.push(`tee_color = $${idx++}`);
+    values.push(data.tee_name);
   }
   if (data.par_total !== undefined) {
     fields.push(`par_total = $${idx++}`);
     values.push(data.par_total);
+  }
+  if (data.course_rating !== undefined) {
+    fields.push(`course_rating = $${idx++}`);
+    values.push(data.course_rating);
+  }
+  if (data.slope_rating !== undefined) {
+    fields.push(`slope_rating = $${idx++}`);
+    values.push(data.slope_rating);
   }
 
   if (fields.length === 0) return null;

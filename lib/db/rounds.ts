@@ -136,6 +136,30 @@ export async function saveRecapText(
 }
 
 /**
+ * 获取球员最近 20 场有评级数据的轮次（用于 handicap 计算）
+ */
+export interface RoundWithRatings extends Round {
+  course_rating: number | null;
+  slope_rating: number | null;
+}
+
+export async function getPlayerRoundsWithRatings(userId: string): Promise<RoundWithRatings[]> {
+  const result = await query<RoundWithRatings>(
+    `SELECT r.*, ct.course_rating, ct.slope_rating
+     FROM rounds r
+     JOIN course_tees ct ON r.course_tee_id = ct.id
+     WHERE r.user_id = $1
+       AND r.total_score IS NOT NULL
+       AND ct.course_rating IS NOT NULL
+       AND ct.slope_rating IS NOT NULL
+     ORDER BY r.played_date DESC
+     LIMIT 20`,
+    [userId]
+  );
+  return result.rows;
+}
+
+/**
  * 更新球员某一洞的历史统计（upsert）
  */
 export async function updatePlayerHoleHistory(

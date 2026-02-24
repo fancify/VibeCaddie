@@ -15,9 +15,11 @@ export async function PUT(
     await getUserId();
     const { teeId } = await context.params;
     const body = await request.json();
-    const { tee_name, par_total } = body as {
+    const { tee_name, par_total, course_rating, slope_rating } = body as {
       tee_name?: string;
       par_total?: number;
+      course_rating?: number | null;
+      slope_rating?: number | null;
     };
 
     if (tee_name !== undefined && !tee_name.trim()) {
@@ -36,6 +38,8 @@ export async function PUT(
     const updated = await updateCourseTee(teeId, {
       tee_name: tee_name?.trim(),
       par_total,
+      course_rating,
+      slope_rating,
     });
 
     if (!updated) {

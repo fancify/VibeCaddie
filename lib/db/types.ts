@@ -18,6 +18,8 @@ export interface CourseTee {
   tee_name: string;
   tee_color: string | null;
   par_total: number;
+  course_rating: number | null;
+  slope_rating: number | null;
   created_at: string;
 }
 
@@ -51,6 +53,7 @@ export interface PlayerProfile {
   sex: string | null;
   age: number | null;
   handicap_index: number | null;
+  vibecaddie_index: number | null;
   created_at: string;
   updated_at: string;
 }

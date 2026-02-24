@@ -108,6 +108,16 @@ export async function upsertPlayerClubDistance(
 }
 
 /**
+ * 更新 VibeCaddie Index（自动计算后写入）
+ */
+export async function updateVibecaddieIndex(userId: string, index: number): Promise<void> {
+  await query(
+    'UPDATE player_profiles SET vibecaddie_index = $1, updated_at = now() WHERE user_id = $2',
+    [index, userId]
+  );
+}
+
+/**
  * 获取球员在某球场 tee 台的历史打球数据（按洞）
  */
 export async function getPlayerHoleHistory(

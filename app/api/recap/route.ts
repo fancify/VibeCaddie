@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getUserId } from "@/lib/auth/session";
 import { generateRecap } from "@/lib/services/recap";
+import { calculateAndSaveVibecaddieIndex } from "@/lib/services/handicap";
 
 /** POST /api/recap — 生成赛后回顾 */
 export async function POST(request: NextRequest) {
@@ -17,6 +18,12 @@ export async function POST(request: NextRequest) {
     }
 
     const recapText = await generateRecap(userId, round_id);
+
+    // 异步更新 VibeCaddie Index（不阻塞响应）
+    calculateAndSaveVibecaddieIndex(userId).catch((err) =>
+      console.error("VibeCaddie Index calculation error:", err)
+    );
+
     return NextResponse.json({ recap_text: recapText }, { status: 200 });
   } catch (error) {
     if ((error as Error).message === "Unauthorized") {

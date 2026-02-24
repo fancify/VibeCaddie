@@ -78,12 +78,23 @@ export function ProfileForm({ initial, onSaved }: ProfileFormProps) {
         placeholder="Optional"
       />
       <Input
-        label="Handicap Index"
+        label="Official Handicap Index"
         value={handicap}
         onChange={setHandicap}
         type="number"
         placeholder="e.g. 15.2"
       />
+      {initial?.vibecaddie_index != null && (
+        <div className="flex flex-col gap-0.5">
+          <span className="text-[0.8125rem] text-secondary font-medium">VibeCaddie Index</span>
+          <span className="text-[1rem] font-semibold text-accent">
+            {initial.vibecaddie_index.toFixed(1)}
+          </span>
+          <span className="text-[0.75rem] text-secondary">
+            Auto-calculated from your scored rounds
+          </span>
+        </div>
+      )}
       <div className="flex items-center gap-3">
         <Button onClick={handleSave} disabled={saving || !name.trim()}>
           {saving ? "Saving..." : "Save Profile"}
