@@ -66,7 +66,8 @@ export async function upsertRoundHole(data: {
   tee_club: string;
   tee_result: 'FW' | 'LEFT' | 'RIGHT' | 'OB';
   approach_club?: string;
-  approach_result?: 'GIR' | 'SHORT' | 'LONG' | 'LEFT' | 'RIGHT';
+  approach_distance?: 'GIR' | 'SHORT' | 'LONG';
+  approach_direction?: 'CENTER' | 'LEFT' | 'RIGHT';
   recovery_club?: string;
   score?: number;
   putts?: number;
@@ -76,14 +77,15 @@ export async function upsertRoundHole(data: {
 }): Promise<RoundHole> {
   const result = await query<RoundHole>(
     `INSERT INTO round_holes
-       (round_id, hole_number, tee_club, tee_result, approach_club, approach_result, recovery_club, score, putts, bunker_count, water_count, penalty_count)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+       (round_id, hole_number, tee_club, tee_result, approach_club, approach_distance, approach_direction, recovery_club, score, putts, bunker_count, water_count, penalty_count)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
      ON CONFLICT (round_id, hole_number)
      DO UPDATE SET
        tee_club = EXCLUDED.tee_club,
        tee_result = EXCLUDED.tee_result,
        approach_club = EXCLUDED.approach_club,
-       approach_result = EXCLUDED.approach_result,
+       approach_distance = EXCLUDED.approach_distance,
+       approach_direction = EXCLUDED.approach_direction,
        recovery_club = EXCLUDED.recovery_club,
        score = EXCLUDED.score,
        putts = EXCLUDED.putts,
@@ -97,7 +99,8 @@ export async function upsertRoundHole(data: {
       data.tee_club,
       data.tee_result,
       data.approach_club ?? null,
-      data.approach_result ?? null,
+      data.approach_distance ?? null,
+      data.approach_direction ?? null,
       data.recovery_club ?? null,
       data.score ?? null,
       data.putts ?? null,

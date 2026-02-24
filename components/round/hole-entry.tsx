@@ -23,25 +23,38 @@ const TEE_RESULT_STYLES: Record<TeeResult, { base: string; selected: string }> =
   OB:    { base: "bg-red-50 text-red-700 border-red-200",         selected: "bg-red-500 text-white border-red-500" },
 };
 
-// ─── Approach Result ──────────────────────────────────────────────────────────
+// ─── Approach Distance ────────────────────────────────────────────────────────
 
-const APPROACH_RESULTS = ["GIR", "SHORT", "LONG", "LEFT", "RIGHT"] as const;
-type ApproachResult = (typeof APPROACH_RESULTS)[number];
+const APPROACH_DISTANCES = ["GIR", "SHORT", "LONG"] as const;
+type ApproachDistance = (typeof APPROACH_DISTANCES)[number];
 
-const APPROACH_RESULT_LABELS: Record<ApproachResult, string> = {
+const APPROACH_DISTANCE_LABELS: Record<ApproachDistance, string> = {
   GIR:   "GIR",
   SHORT: "Short",
   LONG:  "Long",
-  LEFT:  "Left",
-  RIGHT: "Right",
 };
 
-const APPROACH_RESULT_STYLES: Record<ApproachResult, { base: string; selected: string }> = {
+const APPROACH_DISTANCE_STYLES: Record<ApproachDistance, { base: string; selected: string }> = {
   GIR:   { base: "bg-green-50 text-green-700 border-green-200",   selected: "bg-green-600 text-white border-green-600" },
   SHORT: { base: "bg-amber-50 text-amber-700 border-amber-200",   selected: "bg-amber-500 text-white border-amber-500" },
   LONG:  { base: "bg-amber-50 text-amber-700 border-amber-200",   selected: "bg-amber-500 text-white border-amber-500" },
-  LEFT:  { base: "bg-amber-50 text-amber-700 border-amber-200",   selected: "bg-amber-500 text-white border-amber-500" },
-  RIGHT: { base: "bg-amber-50 text-amber-700 border-amber-200",   selected: "bg-amber-500 text-white border-amber-500" },
+};
+
+// ─── Approach Direction ───────────────────────────────────────────────────────
+
+const APPROACH_DIRECTIONS = ["LEFT", "CENTER", "RIGHT"] as const;
+type ApproachDirection = (typeof APPROACH_DIRECTIONS)[number];
+
+const APPROACH_DIRECTION_LABELS: Record<ApproachDirection, string> = {
+  LEFT:   "Left",
+  CENTER: "Center",
+  RIGHT:  "Right",
+};
+
+const APPROACH_DIRECTION_STYLES: Record<ApproachDirection, { base: string; selected: string }> = {
+  LEFT:   { base: "bg-amber-50 text-amber-700 border-amber-200", selected: "bg-amber-500 text-white border-amber-500" },
+  CENTER: { base: "bg-blue-50 text-blue-700 border-blue-200",    selected: "bg-blue-500 text-white border-blue-500" },
+  RIGHT:  { base: "bg-amber-50 text-amber-700 border-amber-200", selected: "bg-amber-500 text-white border-amber-500" },
 };
 
 // 球包未配置时的默认球杆
@@ -128,7 +141,8 @@ export interface HoleLocalData {
   tee_club: string;
   tee_result: string;
   approach_club: string;
-  approach_result: string;
+  approach_distance: string;
+  approach_direction: string;
   recovery_club: string;
   bunker_count: number;
   water_count: number;
@@ -163,11 +177,12 @@ export const HoleEntry = forwardRef<HoleEntryHandle, HoleEntryProps>(
     const selectableClubs = effectiveClubs.filter((c) => c !== "Putter");
 
     // 优先本地暂存 → API 数据 → 默认值
-    const [teeClub,       setTeeClub]       = useState(localData?.tee_club       ?? initialData?.tee_club       ?? "");
-    const [teeResult,     setTeeResult]     = useState(localData?.tee_result     ?? initialData?.tee_result     ?? "");
-    const [approachClub,  setApproachClub]  = useState(localData?.approach_club  ?? initialData?.approach_club  ?? "");
-    const [approachResult,setApproachResult]= useState(localData?.approach_result ?? (initialData?.approach_result ?? ""));
-    const [recoveryClub,  setRecoveryClub]  = useState(localData?.recovery_club  ?? initialData?.recovery_club  ?? "");
+    const [teeClub,          setTeeClub]          = useState(localData?.tee_club          ?? initialData?.tee_club          ?? "");
+    const [teeResult,        setTeeResult]        = useState(localData?.tee_result        ?? initialData?.tee_result        ?? "");
+    const [approachClub,     setApproachClub]     = useState(localData?.approach_club     ?? initialData?.approach_club     ?? "");
+    const [approachDistance, setApproachDistance] = useState(localData?.approach_distance ?? initialData?.approach_distance ?? "");
+    const [approachDirection,setApproachDirection]= useState(localData?.approach_direction ?? initialData?.approach_direction ?? "");
+    const [recoveryClub,     setRecoveryClub]     = useState(localData?.recovery_club     ?? initialData?.recovery_club     ?? "");
     const [bunkerCount,   setBunkerCount]   = useState(localData?.bunker_count   ?? initialData?.bunker_count   ?? 0);
     const [waterCount,    setWaterCount]    = useState(localData?.water_count    ?? initialData?.water_count    ?? 0);
     const [penaltyCount,  setPenaltyCount]  = useState(localData?.penalty_count  ?? initialData?.penalty_count  ?? 0);
@@ -179,11 +194,12 @@ export const HoleEntry = forwardRef<HoleEntryHandle, HoleEntryProps>(
 
     // 切换洞号时重置
     useEffect(() => {
-      setTeeClub      (localData?.tee_club       ?? initialData?.tee_club       ?? "");
-      setTeeResult    (localData?.tee_result     ?? initialData?.tee_result     ?? "");
-      setApproachClub (localData?.approach_club  ?? initialData?.approach_club  ?? "");
-      setApproachResult(localData?.approach_result ?? (initialData?.approach_result ?? ""));
-      setRecoveryClub (localData?.recovery_club  ?? initialData?.recovery_club  ?? "");
+      setTeeClub         (localData?.tee_club          ?? initialData?.tee_club          ?? "");
+      setTeeResult       (localData?.tee_result        ?? initialData?.tee_result        ?? "");
+      setApproachClub    (localData?.approach_club     ?? initialData?.approach_club     ?? "");
+      setApproachDistance(localData?.approach_distance ?? initialData?.approach_distance ?? "");
+      setApproachDirection(localData?.approach_direction ?? initialData?.approach_direction ?? "");
+      setRecoveryClub    (localData?.recovery_club     ?? initialData?.recovery_club     ?? "");
       setBunkerCount  (localData?.bunker_count   ?? initialData?.bunker_count   ?? 0);
       setWaterCount   (localData?.water_count    ?? initialData?.water_count    ?? 0);
       setPenaltyCount (localData?.penalty_count  ?? initialData?.penalty_count  ?? 0);
@@ -193,18 +209,19 @@ export const HoleEntry = forwardRef<HoleEntryHandle, HoleEntryProps>(
     }, [holeNumber, initialData, localData, par]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const buildLocal = useCallback((): HoleLocalData => ({
-      hole_number:    holeNumber,
-      tee_club:       teeClub,
-      tee_result:     teeResult,
-      approach_club:  approachClub,
-      approach_result:approachResult,
-      recovery_club:  recoveryClub,
-      bunker_count:   bunkerCount,
-      water_count:    waterCount,
-      penalty_count:  penaltyCount,
+      hole_number:       holeNumber,
+      tee_club:          teeClub,
+      tee_result:        teeResult,
+      approach_club:     approachClub,
+      approach_distance: approachDistance,
+      approach_direction:approachDirection,
+      recovery_club:     recoveryClub,
+      bunker_count:      bunkerCount,
+      water_count:       waterCount,
+      penalty_count:     penaltyCount,
       score,
       putts,
-    }), [holeNumber, teeClub, teeResult, approachClub, approachResult, recoveryClub, bunkerCount, waterCount, penaltyCount, score, putts]);
+    }), [holeNumber, teeClub, teeResult, approachClub, approachDistance, approachDirection, recoveryClub, bunkerCount, waterCount, penaltyCount, score, putts]);
 
     const doApiSave = useCallback(async () => {
       setSaving(true);
@@ -214,11 +231,12 @@ export const HoleEntry = forwardRef<HoleEntryHandle, HoleEntryProps>(
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             hole_number:    holeNumber,
-            tee_club:       teeClub       || undefined,
-            tee_result:     teeResult     || undefined,
-            approach_club:  approachClub  || undefined,
-            approach_result:approachResult || undefined,
-            recovery_club:  recoveryClub  || undefined,
+            tee_club:          teeClub          || undefined,
+            tee_result:        teeResult        || undefined,
+            approach_club:     approachClub     || undefined,
+            approach_distance: approachDistance || undefined,
+            approach_direction:approachDirection || undefined,
+            recovery_club:     recoveryClub     || undefined,
             score,
             putts,
             bunker_count:  bunkerCount,
@@ -243,7 +261,7 @@ export const HoleEntry = forwardRef<HoleEntryHandle, HoleEntryProps>(
         setSaving(false);
       }
       return false;
-    }, [roundId, holeNumber, teeClub, teeResult, approachClub, approachResult, recoveryClub, score, putts, bunkerCount, waterCount, penaltyCount, onSave]);
+    }, [roundId, holeNumber, teeClub, teeResult, approachClub, approachDistance, approachDirection, recoveryClub, score, putts, bunkerCount, waterCount, penaltyCount, onSave]);
 
     useImperativeHandle(ref, () => ({
       save: async () => {
@@ -253,7 +271,7 @@ export const HoleEntry = forwardRef<HoleEntryHandle, HoleEntryProps>(
       },
     }), [buildLocal, doApiSave, onLocalChange]);
 
-    const showRecovery = approachResult !== "" && approachResult !== "GIR";
+    const showRecovery = approachDistance !== "" && approachDistance !== "GIR";
 
     function mark() { setSaved(false); }
 
@@ -321,25 +339,54 @@ export const HoleEntry = forwardRef<HoleEntryHandle, HoleEntryProps>(
             selected={approachClub}
             onSelect={(c) => { setApproachClub(c); mark(); }}
           />
-          <div className="grid grid-cols-5 gap-2">
-            {APPROACH_RESULTS.map((result) => {
-              const st = APPROACH_RESULT_STYLES[result];
+          {/* Distance: GIR / Short / Long */}
+          <div className="grid grid-cols-3 gap-2">
+            {APPROACH_DISTANCES.map((d) => {
+              const st = APPROACH_DISTANCE_STYLES[d];
               return (
                 <button
-                  key={result}
+                  key={d}
                   type="button"
-                  onClick={() => { setApproachResult(approachResult === result ? "" : result); mark(); }}
+                  onClick={() => {
+                    const next = approachDistance === d ? "" : d;
+                    setApproachDistance(next);
+                    // GIR → clear direction
+                    if (next === "GIR" || next === "") setApproachDirection("");
+                    mark();
+                  }}
                   className={`
-                    min-h-[44px] rounded-lg border text-[0.8125rem] font-semibold
+                    min-h-[44px] rounded-lg border text-[0.875rem] font-semibold
                     transition-colors duration-150 cursor-pointer
-                    ${approachResult === result ? st.selected : st.base}
+                    ${approachDistance === d ? st.selected : st.base}
                   `}
                 >
-                  {APPROACH_RESULT_LABELS[result]}
+                  {APPROACH_DISTANCE_LABELS[d]}
                 </button>
               );
             })}
           </div>
+          {/* Direction: Left / Center / Right — only when missed green */}
+          {(approachDistance === "SHORT" || approachDistance === "LONG") && (
+            <div className="grid grid-cols-3 gap-2">
+              {APPROACH_DIRECTIONS.map((dir) => {
+                const st = APPROACH_DIRECTION_STYLES[dir];
+                return (
+                  <button
+                    key={dir}
+                    type="button"
+                    onClick={() => { setApproachDirection(approachDirection === dir ? "" : dir); mark(); }}
+                    className={`
+                      min-h-[44px] rounded-lg border text-[0.8125rem] font-semibold
+                      transition-colors duration-150 cursor-pointer
+                      ${approachDirection === dir ? st.selected : st.base}
+                    `}
+                  >
+                    {APPROACH_DIRECTION_LABELS[dir]}
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {/* ④ Recovery — only when green was missed */}

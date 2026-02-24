@@ -100,7 +100,8 @@ export interface RoundHole {
   tee_club: string;
   tee_result: 'FW' | 'LEFT' | 'RIGHT' | 'OB';
   approach_club: string | null;
-  approach_result: 'GIR' | 'SHORT' | 'LONG' | 'LEFT' | 'RIGHT' | null;
+  approach_distance: 'GIR' | 'SHORT' | 'LONG' | null;
+  approach_direction: 'CENTER' | 'LEFT' | 'RIGHT' | null;
   recovery_club: string | null;
   score: number | null;
   putts: number | null;

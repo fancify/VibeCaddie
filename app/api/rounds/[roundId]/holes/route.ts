@@ -26,7 +26,8 @@ export async function PUT(
       tee_club,
       tee_result,
       approach_club,
-      approach_result,
+      approach_distance,
+      approach_direction,
       recovery_club,
       score,
       putts,
@@ -38,7 +39,8 @@ export async function PUT(
       tee_club?: string;
       tee_result?: string;
       approach_club?: string;
-      approach_result?: string;
+      approach_distance?: string;
+      approach_direction?: string;
       recovery_club?: string;
       score?: number;
       putts?: number;
@@ -60,10 +62,15 @@ export async function PUT(
       ? tee_result
       : "FW") as "FW" | "LEFT" | "RIGHT" | "OB";
 
-    const validApproachResults = ["GIR", "SHORT", "LONG", "LEFT", "RIGHT"];
-    const safeApproachResult = (approach_result && validApproachResults.includes(approach_result)
-      ? approach_result
-      : undefined) as "GIR" | "SHORT" | "LONG" | "LEFT" | "RIGHT" | undefined;
+    const validDistances = ["GIR", "SHORT", "LONG"];
+    const safeApproachDistance = (approach_distance && validDistances.includes(approach_distance)
+      ? approach_distance
+      : undefined) as "GIR" | "SHORT" | "LONG" | undefined;
+
+    const validDirections = ["CENTER", "LEFT", "RIGHT"];
+    const safeApproachDirection = (approach_direction && validDirections.includes(approach_direction)
+      ? approach_direction
+      : undefined) as "CENTER" | "LEFT" | "RIGHT" | undefined;
 
     const hole = await upsertRoundHole({
       round_id: roundId,
@@ -71,7 +78,8 @@ export async function PUT(
       tee_club: safeTeeClub,
       tee_result: safeTeeResult,
       approach_club: approach_club || undefined,
-      approach_result: safeApproachResult,
+      approach_distance: safeApproachDistance,
+      approach_direction: safeApproachDirection,
       recovery_club: recovery_club || undefined,
       score,
       putts,

@@ -44,7 +44,7 @@ export async function generateRecap(
   const totalScore = round.total_score || roundHoles.reduce((sum, h) => sum + (h.score || 0), 0);
   const fwCount = roundHoles.filter(h => h.tee_result === 'FW').length;
   const penCount = roundHoles.filter(h => h.tee_result === 'OB').length;
-  const girCount = roundHoles.filter(h => h.approach_result === 'GIR').length;
+  const girCount = roundHoles.filter(h => h.approach_distance === 'GIR').length;
 
   let prompt = `Generate a post-round recap.\n\n`;
   prompt += `## Round Summary\n`;
@@ -57,7 +57,10 @@ export async function generateRecap(
   for (const hole of roundHoles) {
     const courseHole = courseHoles.find(ch => ch.hole_number === hole.hole_number);
     prompt += `Hole ${hole.hole_number}: Par ${courseHole?.par || '?'}, Tee: ${hole.tee_club} (${hole.tee_result}), Score: ${hole.score || '?'}`;
-    if (hole.approach_result) prompt += `, Approach: ${hole.approach_result}`;
+    if (hole.approach_distance) {
+      const dir = hole.approach_direction ? `/${hole.approach_direction}` : '';
+      prompt += `, Approach: ${hole.approach_distance}${dir}`;
+    }
     if (hole.putts !== null) prompt += `, Putts: ${hole.putts}`;
     prompt += '\n';
   }

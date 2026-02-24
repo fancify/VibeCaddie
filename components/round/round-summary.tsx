@@ -62,7 +62,7 @@ export function RoundSummary({
       if (hole.tee_result === "FW") {
         fwCount++;
       }
-      if (hole.approach_result === "GIR") {
+      if (hole.approach_distance === "GIR") {
         girCount++;
       }
     }

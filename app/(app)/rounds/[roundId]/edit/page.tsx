@@ -123,7 +123,7 @@ export default function EditRoundPage() {
     console.warn("[VibeCaddie] handleFinish — localHolesData size:", latestLocal.size);
     console.warn("[VibeCaddie] handleFinish — holesData (API) size:", latestApi.size);
     for (const [num, local] of latestLocal.entries()) {
-      console.warn(`[VibeCaddie]   Hole ${num}: tee_club="${local.tee_club}", tee_result="${local.tee_result}", approach="${local.approach_result}", score=${local.score}`);
+      console.warn(`[VibeCaddie]   Hole ${num}: tee_club="${local.tee_club}", tee_result="${local.tee_result}", approach="${local.approach_distance}/${local.approach_direction}", score=${local.score}`);
     }
 
     // 3. 全量 upsert 所有有数据的洞（API 会为空 tee_club/tee_result 提供默认值）
@@ -136,11 +136,12 @@ export default function EditRoundPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             hole_number:    local.hole_number,
-            tee_club:       local.tee_club       || undefined,
-            tee_result:     local.tee_result     || undefined,
-            approach_club:  local.approach_club  || undefined,
-            approach_result:local.approach_result || undefined,
-            recovery_club:  local.recovery_club  || undefined,
+            tee_club:          local.tee_club          || undefined,
+            tee_result:        local.tee_result        || undefined,
+            approach_club:     local.approach_club     || undefined,
+            approach_distance: local.approach_distance || undefined,
+            approach_direction:local.approach_direction || undefined,
+            recovery_club:     local.recovery_club     || undefined,
             score:          local.score,
             putts:          local.putts,
             bunker_count:   local.bunker_count,
