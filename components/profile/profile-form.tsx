@@ -84,16 +84,22 @@ export function ProfileForm({ initial, onSaved }: ProfileFormProps) {
         type="number"
         placeholder="e.g. 15.2"
       />
-      {initial?.vibecaddie_index != null && (
-        <div className="flex flex-col gap-0.5">
-          <span className="text-[0.8125rem] text-secondary font-medium">VibeCaddie Index</span>
-          <span className="text-[1rem] font-semibold text-accent">
-            {initial.vibecaddie_index.toFixed(1)}
-          </span>
-          <span className="text-[0.75rem] text-secondary">
-            Auto-calculated from your scored rounds
-          </span>
-        </div>
+      {initial && (
+        initial.vibecaddie_index != null ? (
+          <div className="flex flex-col gap-0.5">
+            <span className="text-[0.8125rem] text-secondary font-medium">VibeCaddie Index</span>
+            <span className="text-[1rem] font-semibold text-accent">
+              {Number(initial.vibecaddie_index).toFixed(1)}
+            </span>
+            <span className="text-[0.75rem] text-secondary">
+              Auto-calculated from your scored rounds
+            </span>
+          </div>
+        ) : (
+          <p className="text-[0.75rem] text-secondary">
+            Add course rating &amp; slope rating to your courses to enable VibeCaddie Index calculation.
+          </p>
+        )
       )}
       <div className="flex items-center gap-3">
         <Button onClick={handleSave} disabled={saving || !name.trim()}>
