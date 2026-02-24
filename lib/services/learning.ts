@@ -26,7 +26,7 @@ export function computeHistoryUpdate(
   holeData: HoleData,
 ): HistoryData {
   const isDriver = holeData.tee_club === 'D';
-  const isPenalty = holeData.tee_result === 'PEN';
+  const isPenalty = holeData.tee_result === 'OB';
 
   if (!existing) {
     return {

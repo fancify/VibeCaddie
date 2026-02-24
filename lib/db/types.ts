@@ -98,11 +98,15 @@ export interface RoundHole {
   round_id: string;
   hole_number: number;
   tee_club: string;
-  tee_result: 'FW' | 'L' | 'R' | 'PEN';
-  clubs_used: string[] | null;
+  tee_result: 'FW' | 'LEFT' | 'RIGHT' | 'OB';
+  approach_club: string | null;
+  approach_result: 'GIR' | 'SHORT' | 'LONG' | 'LEFT' | 'RIGHT' | null;
+  recovery_club: string | null;
   score: number | null;
   putts: number | null;
-  gir: boolean | null;
+  bunker_count: number;
+  water_count: number;
+  penalty_count: number;
 }
 
 export interface PlayerHoleHistory {

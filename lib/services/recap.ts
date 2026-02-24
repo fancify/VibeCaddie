@@ -43,18 +43,21 @@ export async function generateRecap(
   // 6. 构建 LLM 提示词
   const totalScore = round.total_score || roundHoles.reduce((sum, h) => sum + (h.score || 0), 0);
   const fwCount = roundHoles.filter(h => h.tee_result === 'FW').length;
-  const penCount = roundHoles.filter(h => h.tee_result === 'PEN').length;
+  const penCount = roundHoles.filter(h => h.tee_result === 'OB').length;
+  const girCount = roundHoles.filter(h => h.approach_result === 'GIR').length;
 
   let prompt = `Generate a post-round recap.\n\n`;
   prompt += `## Round Summary\n`;
   prompt += `Total score: ${totalScore}\n`;
   prompt += `Fairways hit: ${fwCount} out of ${roundHoles.length}\n`;
-  prompt += `Penalties: ${penCount}\n\n`;
+  prompt += `Greens in regulation: ${girCount} out of ${roundHoles.length}\n`;
+  prompt += `OB/penalties: ${penCount}\n\n`;
 
   prompt += `## Per-Hole Results\n`;
   for (const hole of roundHoles) {
     const courseHole = courseHoles.find(ch => ch.hole_number === hole.hole_number);
-    prompt += `Hole ${hole.hole_number}: Par ${courseHole?.par || '?'}, Club: ${hole.tee_club}, Result: ${hole.tee_result}, Score: ${hole.score || '?'}`;
+    prompt += `Hole ${hole.hole_number}: Par ${courseHole?.par || '?'}, Tee: ${hole.tee_club} (${hole.tee_result}), Score: ${hole.score || '?'}`;
+    if (hole.approach_result) prompt += `, Approach: ${hole.approach_result}`;
     if (hole.putts !== null) prompt += `, Putts: ${hole.putts}`;
     prompt += '\n';
   }

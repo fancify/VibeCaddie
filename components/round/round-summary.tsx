@@ -6,10 +6,10 @@ import type { RoundHole, CourseHole } from "@/lib/db/types";
 
 /** Tee result 颜色 */
 const RESULT_COLOR: Record<string, string> = {
-  FW: "text-green-600",
-  L: "text-amber-600",
-  R: "text-amber-600",
-  PEN: "text-red-600",
+  FW:    "text-green-600",
+  LEFT:  "text-amber-600",
+  RIGHT: "text-amber-600",
+  OB:    "text-red-600",
 };
 
 interface RoundSummaryProps {
@@ -62,7 +62,7 @@ export function RoundSummary({
       if (hole.tee_result === "FW") {
         fwCount++;
       }
-      if (hole.gir === true) {
+      if (hole.approach_result === "GIR") {
         girCount++;
       }
     }

@@ -15,21 +15,36 @@ export async function PUT(
     const userId = await getUserId();
     const { roundId } = await context.params;
 
-    // 校验轮次属于当前用户
     const round = await getRoundById(userId, roundId);
     if (!round) {
       return NextResponse.json({ error: "Round not found" }, { status: 404 });
     }
 
     const body = await request.json();
-    const { hole_number, tee_club, tee_result, clubs_used, score, putts, gir } = body as {
+    const {
+      hole_number,
+      tee_club,
+      tee_result,
+      approach_club,
+      approach_result,
+      recovery_club,
+      score,
+      putts,
+      bunker_count,
+      water_count,
+      penalty_count,
+    } = body as {
       hole_number: number;
       tee_club?: string;
       tee_result?: string;
-      clubs_used?: string[];
+      approach_club?: string;
+      approach_result?: string;
+      recovery_club?: string;
       score?: number;
       putts?: number;
-      gir?: boolean;
+      bunker_count?: number;
+      water_count?: number;
+      penalty_count?: number;
     };
 
     if (!hole_number) {
@@ -39,20 +54,30 @@ export async function PUT(
       );
     }
 
-    // 允许空值，用默认值填充（DB 要求 NOT NULL）
     const safeTeeClub = tee_club || "-";
-    const validResults = ["FW", "L", "R", "PEN"];
-    const safeTeeResult = (tee_result && validResults.includes(tee_result) ? tee_result : "FW") as "FW" | "L" | "R" | "PEN";
+    const validTeeResults = ["FW", "LEFT", "RIGHT", "OB"];
+    const safeTeeResult = (tee_result && validTeeResults.includes(tee_result)
+      ? tee_result
+      : "FW") as "FW" | "LEFT" | "RIGHT" | "OB";
+
+    const validApproachResults = ["GIR", "SHORT", "LONG", "LEFT", "RIGHT"];
+    const safeApproachResult = (approach_result && validApproachResults.includes(approach_result)
+      ? approach_result
+      : undefined) as "GIR" | "SHORT" | "LONG" | "LEFT" | "RIGHT" | undefined;
 
     const hole = await upsertRoundHole({
       round_id: roundId,
       hole_number,
       tee_club: safeTeeClub,
       tee_result: safeTeeResult,
-      clubs_used,
+      approach_club: approach_club || undefined,
+      approach_result: safeApproachResult,
+      recovery_club: recovery_club || undefined,
       score,
       putts,
-      gir,
+      bunker_count: bunker_count ?? 0,
+      water_count: water_count ?? 0,
+      penalty_count: penalty_count ?? 0,
     });
 
     // 自动重算总分
