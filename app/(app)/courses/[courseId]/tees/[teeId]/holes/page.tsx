@@ -126,8 +126,8 @@ export default function HolesPage() {
 
       {/* 协作提示 */}
       <InfoBanner>
-        Fill in what you remember — par, yardage, stroke index, and any
-        hazards. Approximate is fine. Other players can add what you missed.
+        Fill in what you remember — par, yardage, stroke index, and hole
+        notes. Approximate is fine. Other players can add what you missed.
       </InfoBanner>
 
       {/* Course Rating & Slope Rating */}
