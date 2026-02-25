@@ -15,12 +15,15 @@ interface LookupHole {
   par: number;
   yardage: number;
   si: number;
+  hole_note?: string;
 }
 
 interface LookupTee {
   tee_name: string;
   tee_color: string;
   par_total: number;
+  course_rating?: number;
+  slope_rating?: number;
   holes: LookupHole[];
   selected: boolean; // 用户是否选择保存此 tee
 }
@@ -29,8 +32,9 @@ interface LookupResult {
   course_name: string;
   location: string;
   tees: LookupTee[];
-  source_url?: string;
   confidence: "high" | "medium" | "low";
+  scorecard_source: "golfcourseapi";
+  notes_source_url?: string;
 }
 
 type LookupState = "idle" | "searching" | "preview" | "saving";
@@ -222,11 +226,17 @@ export function CourseLookup() {
       });
 
       if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || "Search failed");
+        let errorMsg = "Search failed";
+        try {
+          const data = await res.json();
+          errorMsg = data.error || errorMsg;
+        } catch { /* empty body */ }
+        throw new Error(errorMsg);
       }
 
-      const data = await res.json();
+      const text = await res.text();
+      if (!text) throw new Error("Empty response from server. Please try again.");
+      const data = JSON.parse(text);
 
       if (!data.tees || data.tees.length === 0) {
         throw new Error("No tee data found for this course.");
@@ -342,20 +352,24 @@ export function CourseLookup() {
 
       // 创建选中的 tee + holes
       for (const tee of selectedTees) {
+        const teeBody: Record<string, unknown> = {
+          tee_name: tee.tee_name,
+          tee_color: tee.tee_color,
+          par_total: tee.par_total,
+        };
+        if (tee.course_rating != null) teeBody.course_rating = tee.course_rating;
+        if (tee.slope_rating != null) teeBody.slope_rating = tee.slope_rating;
+
         const teeRes = await fetch(`/api/courses/${courseId}/tees`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            tee_name: tee.tee_name,
-            tee_color: tee.tee_color,
-            par_total: tee.par_total,
-          }),
+          body: JSON.stringify(teeBody),
         });
 
         if (!teeRes.ok) throw new Error(`Failed to create ${tee.tee_name} tee`);
         const createdTee = (await teeRes.json()) as CourseTee;
 
-        // 批量 upsert holes
+        // 批量 upsert holes（含 hole_note）
         const holesRes = await fetch(
           `/api/courses/${courseId}/tees/${createdTee.id}/holes`,
           {
@@ -367,6 +381,7 @@ export function CourseLookup() {
                 par: h.par,
                 yardage: h.yardage,
                 si: h.si,
+                hole_note: h.hole_note || undefined,
               })),
             }),
           },
@@ -415,7 +430,7 @@ export function CourseLookup() {
             onClick={handleSearch}
             disabled={state === "searching"}
           >
-            {state === "searching" ? "Searching... (may take 10s)" : "Search Online"}
+            {state === "searching" ? "Searching... (may take 15s)" : "Search Online"}
           </Button>
         </>
       )}
@@ -433,6 +448,17 @@ export function CourseLookup() {
             {result.location && (
               <p className="text-[0.875rem] text-secondary">{result.location}</p>
             )}
+            {/* 数据来源标签 */}
+            <div className="flex flex-col gap-0.5">
+              <p className="text-[0.75rem] text-green-700">
+                Scorecard: GolfCourseAPI ✓
+              </p>
+              <p className="text-[0.75rem] text-secondary">
+                {result.notes_source_url
+                  ? `Hole notes: ${result.notes_source_url}`
+                  : "Hole notes: not found"}
+              </p>
+            </div>
             {mergeTarget && (
               <p className="text-[0.8125rem] text-accent font-medium">
                 Adding tees to: {mergeTarget.name}
@@ -517,7 +543,12 @@ export function CourseLookup() {
                         </span>
                       )}
                     </label>
-                    <span className="text-[0.8125rem] text-secondary">Par {tee.par_total}</span>
+                    <div className="flex items-center gap-2 text-[0.8125rem] text-secondary">
+                      <span>Par {tee.par_total}</span>
+                      {tee.course_rating != null && <span>CR {tee.course_rating}</span>}
+                      {tee.slope_rating != null && <span>SL {tee.slope_rating}</span>}
+                      <span>{tee.holes.length} holes</span>
+                    </div>
                   </div>
                   {tee.selected && (
                     <EditableScorecardTable
@@ -565,3 +596,5 @@ export function CourseLookup() {
     </div>
   );
 }
+
+
