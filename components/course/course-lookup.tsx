@@ -225,11 +225,17 @@ export function CourseLookup() {
       });
 
       if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || "Search failed");
+        let errorMsg = "Search failed";
+        try {
+          const data = await res.json();
+          errorMsg = data.error || errorMsg;
+        } catch { /* empty body */ }
+        throw new Error(errorMsg);
       }
 
-      const data = await res.json();
+      const text = await res.text();
+      if (!text) throw new Error("Empty response from server. Please try again.");
+      const data = JSON.parse(text);
 
       if (!data.tees || data.tees.length === 0) {
         throw new Error("No tee data found for this course.");
@@ -578,3 +584,4 @@ export function CourseLookup() {
     </div>
   );
 }
+
