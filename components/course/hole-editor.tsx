@@ -5,7 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { HoleRow } from "./hole-row";
 import { Scorecard } from "./scorecard";
-import type { CourseHole, HoleHazard } from "@/lib/db/types";
+import type { CourseHole } from "@/lib/db/types";
 
 const TOTAL_HOLES = 18;
 
@@ -14,9 +14,6 @@ interface HoleState {
   yardage: number;
   si: number;
   holeNote: string;
-  /** 数据库中的 ID，未保存时为 null */
-  holeId: string | null;
-  hazards: HoleHazard[];
 }
 
 function defaultHoles(): HoleState[] {
@@ -25,8 +22,6 @@ function defaultHoles(): HoleState[] {
     yardage: 0,
     si: 0,
     holeNote: "",
-    holeId: null,
-    hazards: [],
   }));
 }
 
@@ -43,18 +38,14 @@ export function HoleEditor({ courseId, teeId, onFinish }: HoleEditorProps) {
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState("");
 
-  // 加载已有球洞数据
   const loadHoles = useCallback(async () => {
     try {
-      const res = await fetch(
-        `/api/courses/${courseId}/tees/${teeId}/holes`
-      );
+      const res = await fetch(`/api/courses/${courseId}/tees/${teeId}/holes`);
       if (!res.ok) return;
 
       const dbHoles = (await res.json()) as CourseHole[];
       if (dbHoles.length === 0) return;
 
-      // 合并数据库数据到本地状态
       const merged = defaultHoles();
       for (const dh of dbHoles) {
         const idx = dh.hole_number - 1;
@@ -64,29 +55,8 @@ export function HoleEditor({ courseId, teeId, onFinish }: HoleEditorProps) {
             yardage: dh.yardage,
             si: (dh as CourseHole & { si?: number }).si ?? 0,
             holeNote: dh.hole_note ?? "",
-            holeId: dh.id,
-            hazards: [],
           };
         }
-      }
-
-      // 并行加载所有球洞的障碍物
-      const hazardPromises = merged.map(async (h) => {
-        if (!h.holeId) return [];
-        try {
-          const hRes = await fetch(
-            `/api/courses/holes/${h.holeId}/hazards`
-          );
-          if (hRes.ok) return (await hRes.json()) as HoleHazard[];
-        } catch {
-          // 加载失败返回空
-        }
-        return [];
-      });
-
-      const allHazards = await Promise.all(hazardPromises);
-      for (let i = 0; i < merged.length; i++) {
-        merged[i].hazards = allHazards[i];
       }
 
       setHoles(merged);
@@ -101,7 +71,6 @@ export function HoleEditor({ courseId, teeId, onFinish }: HoleEditorProps) {
     loadHoles();
   }, [loadHoles]);
 
-  // Save All：批量 upsert，返回是否成功
   async function handleSave(): Promise<boolean> {
     setSaving(true);
     setFeedback("");
@@ -115,28 +84,13 @@ export function HoleEditor({ courseId, teeId, onFinish }: HoleEditorProps) {
         hole_note: h.holeNote || undefined,
       }));
 
-      const res = await fetch(
-        `/api/courses/${courseId}/tees/${teeId}/holes`,
-        {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ holes: payload }),
-        }
-      );
+      const res = await fetch(`/api/courses/${courseId}/tees/${teeId}/holes`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ holes: payload }),
+      });
 
       if (res.ok) {
-        const saved = (await res.json()) as CourseHole[];
-        // 更新本地 holeId（用于后续添加障碍物）
-        setHoles((prev) => {
-          const next = [...prev];
-          for (const s of saved) {
-            const idx = s.hole_number - 1;
-            if (idx >= 0 && idx < TOTAL_HOLES) {
-              next[idx] = { ...next[idx], holeId: s.id };
-            }
-          }
-          return next;
-        });
         setFeedback("Saved!");
         return true;
       } else {
@@ -152,13 +106,11 @@ export function HoleEditor({ courseId, teeId, onFinish }: HoleEditorProps) {
     }
   }
 
-  // Finish：先保存再跳转
   async function handleFinish() {
     const success = await handleSave();
     if (success) onFinish?.();
   }
 
-  // 更新单个洞
   function handleHoleChange(
     index: number,
     data: { par: number; yardage: number; si: number; holeNote: string }
@@ -166,15 +118,6 @@ export function HoleEditor({ courseId, teeId, onFinish }: HoleEditorProps) {
     setHoles((prev) => {
       const next = [...prev];
       next[index] = { ...next[index], ...data };
-      return next;
-    });
-  }
-
-  // 更新单个洞的障碍物
-  function handleHazardsChange(index: number, hazards: HoleHazard[]) {
-    setHoles((prev) => {
-      const next = [...prev];
-      next[index] = { ...next[index], hazards };
       return next;
     });
   }
@@ -196,9 +139,7 @@ export function HoleEditor({ courseId, teeId, onFinish }: HoleEditorProps) {
       {feedback && (
         <p
           className={`text-[0.8125rem] ${
-            feedback.includes("Saved")
-              ? "text-accent"
-              : "text-red-500"
+            feedback.includes("Saved") ? "text-accent" : "text-red-500"
           }`}
         >
           {feedback}
@@ -215,10 +156,7 @@ export function HoleEditor({ courseId, teeId, onFinish }: HoleEditorProps) {
             yardage={hole.yardage}
             si={hole.si}
             holeNote={hole.holeNote}
-            holeId={hole.holeId}
-            hazards={hole.hazards}
             onChange={(data) => handleHoleChange(i, data)}
-            onHazardsChange={(hazards) => handleHazardsChange(i, hazards)}
           />
         ))}
       </Card>
