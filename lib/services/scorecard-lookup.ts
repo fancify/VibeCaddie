@@ -267,6 +267,76 @@ function validateScorecardData(data: LookupResult): ValidationError[] {
   return errors;
 }
 
+// ---------- Ratings Fallback ----------
+
+/** 针对 course rating / slope rating 的补充搜索 */
+async function fetchRatingsContent(name: string, location?: string): Promise<string> {
+  const loc = location || '';
+  const items = await googleSearch(
+    `${name} ${loc} golf course rating slope rating tees scorecard`.trim(),
+    3,
+  );
+  if (items.length === 0) return '';
+
+  const snippets = items.map((i) => `[${i.title}]\n${i.snippet}`).join('\n\n');
+  const urls = [...new Set(items.map((i) => i.link))].slice(0, 2);
+  const pageResults = await Promise.allSettled(urls.map(fetchPageText));
+  const pageTexts = pageResults
+    .filter((r): r is PromiseFulfilledResult<string> => r.status === 'fulfilled')
+    .map((r) => r.value)
+    .filter(Boolean);
+
+  return [
+    '=== SEARCH SNIPPETS ===',
+    snippets,
+    ...pageTexts.map((t, i) => `=== PAGE ${i + 1}: ${urls[i]} ===\n${t}`),
+  ].join('\n\n');
+}
+
+/** 仅提取 course_rating / slope_rating 的轻量 LLM 调用 */
+async function extractRatingsFromLLM(
+  name: string,
+  teeNames: string[],
+  webContent: string,
+): Promise<Record<string, { course_rating?: number; slope_rating?: number }>> {
+  const systemPrompt = `You are a golf course data extraction tool.
+Extract course rating and slope rating for specific tees from the provided content.
+Return ONLY valid JSON with this structure — no markdown, no explanation:
+{
+  "tees": [
+    { "tee_name": "White", "course_rating": 71.2, "slope_rating": 128 }
+  ]
+}
+Rules:
+- Only include tees from this list: ${teeNames.join(', ')}
+- course_rating: decimal like 71.2, range 55-80
+- slope_rating: integer like 128, range 55-155
+- Omit a field if truly unknown
+- Return empty tees array if no data found`;
+
+  try {
+    const response = await callLLM(systemPrompt, `Golf course: ${name}\n\nContent:\n${webContent}`, {
+      max_tokens: 500,
+      temperature: 0,
+    });
+    let jsonStr = response.content.trim();
+    const codeBlockMatch = jsonStr.match(/```(?:json)?\s*([\s\S]*?)```/);
+    if (codeBlockMatch) jsonStr = codeBlockMatch[1].trim();
+
+    const parsed = JSON.parse(jsonStr);
+    const result: Record<string, { course_rating?: number; slope_rating?: number }> = {};
+    for (const tee of (parsed.tees ?? [])) {
+      result[tee.tee_name] = {
+        course_rating: tee.course_rating,
+        slope_rating: tee.slope_rating,
+      };
+    }
+    return result;
+  } catch {
+    return {};
+  }
+}
+
 // ---------- Main Entry ----------
 
 /** 查找球场记分卡：Google 搜索 + 页面抓取 + LLM 提取 + 验证 */
@@ -293,8 +363,33 @@ export async function lookupCourseScorecard(
   // 5. 验证
   const errors = validateScorecardData(result);
   if (errors.length > 0 && result.confidence === 'high') {
-    // 数据有问题但标记了高可信度，降级
     result.confidence = 'medium';
+  }
+
+  // 6. 补充搜索：如果有 tee 缺失 course_rating 或 slope_rating，做一次针对性搜索
+  const teesNeedingRatings = result.tees.filter(
+    (t) => t.course_rating == null || t.slope_rating == null,
+  );
+  if (teesNeedingRatings.length > 0) {
+    const ratingsContent = await fetchRatingsContent(name, location);
+    if (ratingsContent) {
+      const ratings = await extractRatingsFromLLM(
+        name,
+        teesNeedingRatings.map((t) => t.tee_name),
+        ratingsContent,
+      );
+      for (const tee of result.tees) {
+        const found = ratings[tee.tee_name];
+        if (found) {
+          if (found.course_rating != null && tee.course_rating == null) {
+            tee.course_rating = found.course_rating;
+          }
+          if (found.slope_rating != null && tee.slope_rating == null) {
+            tee.slope_rating = found.slope_rating;
+          }
+        }
+      }
+    }
   }
 
   return result;
