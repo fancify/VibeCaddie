@@ -91,7 +91,13 @@ export default function CoursesPage() {
         onClear={handleClearSearch}
       />
 
-      <CourseList courses={displayed} />
+      <CourseList
+        courses={displayed}
+        onDelete={(id) => {
+          setAllCourses((prev) => prev.filter((c) => c.id !== id));
+          setDisplayed((prev) => prev.filter((c) => c.id !== id));
+        }}
+      />
 
       {!isSearching && (
         <Link href="/courses/new">

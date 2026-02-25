@@ -104,6 +104,30 @@ export async function updateCourse(
 }
 
 /**
+ * 删除球场（级联删除其下的 tees、holes、hazards）
+ */
+export async function deleteCourse(courseId: string): Promise<boolean> {
+  // 先删 hazards → holes → tees → course
+  await query(
+    `DELETE FROM hole_hazards WHERE course_hole_id IN (
+       SELECT h.id FROM course_holes h
+       JOIN course_tees t ON t.id = h.course_tee_id
+       WHERE t.course_id = $1
+     )`,
+    [courseId]
+  );
+  await query(
+    `DELETE FROM course_holes WHERE course_tee_id IN (
+       SELECT id FROM course_tees WHERE course_id = $1
+     )`,
+    [courseId]
+  );
+  await query('DELETE FROM course_tees WHERE course_id = $1', [courseId]);
+  const result = await query('DELETE FROM courses WHERE id = $1', [courseId]);
+  return (result.rowCount ?? 0) > 0;
+}
+
+/**
  * 获取球场的所有 tee 台
  */
 export async function getCourseTees(courseId: string): Promise<CourseTee[]> {

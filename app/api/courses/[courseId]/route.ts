@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getUserId } from "@/lib/auth/session";
-import { getCourseById, updateCourse, getCourseTees } from "@/lib/db/courses";
+import { getCourseById, updateCourse, getCourseTees, deleteCourse } from "@/lib/db/courses";
 
 interface RouteContext {
   params: Promise<{ courseId: string }>;
@@ -62,6 +62,32 @@ export async function PUT(
     }
 
     return NextResponse.json(updated);
+  } catch (error) {
+    if ((error as Error).message === "Unauthorized") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    return NextResponse.json(
+      { error: "Internal Server Error" },
+      { status: 500 }
+    );
+  }
+}
+
+/** DELETE /api/courses/[courseId] — 删除球场及其所有 tees/holes/hazards */
+export async function DELETE(
+  _request: NextRequest,
+  context: RouteContext
+) {
+  try {
+    await getUserId();
+    const { courseId } = await context.params;
+
+    const deleted = await deleteCourse(courseId);
+    if (!deleted) {
+      return NextResponse.json({ error: "Course not found" }, { status: 404 });
+    }
+
+    return NextResponse.json({ success: true });
   } catch (error) {
     if ((error as Error).message === "Unauthorized") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

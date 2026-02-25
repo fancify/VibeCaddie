@@ -1,7 +1,8 @@
-// 球场记分卡在线查找服务
-// Google Custom Search API + LLM 结构化提取
+// 球场记分卡查找服务
+// 数字数据：GolfCourseAPI（权威来源）
+// 洞描述：Google Custom Search + LLM 提取（仅提取，不生成）
 
-import { callLLM, SCORECARD_EXTRACTION_PROMPT } from './llm';
+import { callLLM, HOLE_NOTES_EXTRACTION_PROMPT } from './llm';
 
 // ---------- Types ----------
 
@@ -26,33 +27,105 @@ export interface LookupResult {
   course_name: string;
   location: string;
   tees: LookupTee[];
-  source_url?: string;
   confidence: 'high' | 'medium' | 'low';
+  scorecard_source: 'golfcourseapi';
+  notes_source_url?: string;
+}
+
+// ---------- GolfCourseAPI ----------
+
+interface GolfCourseAPIHole {
+  par: number;
+  yardage: number;
+  handicap: number; // = SI（stroke index）
+}
+
+interface GolfCourseAPITee {
+  tee_name: string;
+  course_rating: number;
+  slope_rating: number;
+  par_total: number;
+  holes: GolfCourseAPIHole[];
+}
+
+interface GolfCourseAPICourse {
+  id: number;
+  club_name: string;
+  course_name: string;
+  location: { city?: string; state?: string; country?: string };
+  tees: {
+    male: GolfCourseAPITee[];
+    female: GolfCourseAPITee[];
+  };
+}
+
+async function searchGolfCourseAPI(name: string): Promise<GolfCourseAPICourse | null> {
+  const apiKey = process.env.GOLF_COURSE_API_KEY;
+  if (!apiKey) {
+    console.warn('[scorecard-lookup] GOLF_COURSE_API_KEY not set');
+    return null;
+  }
+
+  try {
+    const url = `https://api.golfcourseapi.com/v1/search?search_query=${encodeURIComponent(name)}`;
+    const res = await fetch(url, {
+      headers: { Authorization: `Key ${apiKey}` },
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!res.ok) {
+      console.warn(`[scorecard-lookup] GolfCourseAPI error: ${res.status}`);
+      return null;
+    }
+    const data = await res.json();
+    console.log('[scorecard-lookup] GolfCourseAPI raw response:', JSON.stringify(data, null, 2));
+    const courses = (data.courses ?? []) as GolfCourseAPICourse[];
+    return courses.length > 0 ? courses[0] : null;
+  } catch (err) {
+    console.error('[scorecard-lookup] GolfCourseAPI fetch error:', err);
+    return null;
+  }
+}
+
+function mapGolfCourseAPITees(apiCourse: GolfCourseAPICourse): LookupTee[] {
+  const allTees: GolfCourseAPITee[] = [
+    ...(apiCourse.tees?.male ?? []),
+    ...(apiCourse.tees?.female ?? []),
+  ];
+
+  return allTees
+    .filter((t) => Array.isArray(t.holes) && t.holes.length === 18)
+    .map((t) => ({
+      tee_name: t.tee_name,
+      tee_color: t.tee_name,
+      par_total: t.par_total ?? t.holes.reduce((s, h) => s + h.par, 0),
+      course_rating: t.course_rating || undefined,
+      slope_rating: t.slope_rating || undefined,
+      holes: t.holes.map((h, idx) => ({
+        hole_number: idx + 1,
+        par: h.par,
+        yardage: h.yardage,
+        si: h.handicap,
+      })),
+    }));
 }
 
 // ---------- HTML → Text ----------
 
-/** 简单 HTML 转文本，保留表格结构中的空格分隔 */
 function stripHtmlToText(html: string): string {
   return html
-    // 表格单元格加分隔符
     .replace(/<\/t[dh]>/gi, ' | ')
     .replace(/<\/tr>/gi, '\n')
-    // 段落/换行
     .replace(/<br\s*\/?>/gi, '\n')
     .replace(/<\/p>/gi, '\n')
     .replace(/<\/div>/gi, '\n')
     .replace(/<\/li>/gi, '\n')
-    // 移除所有其他标签
     .replace(/<[^>]+>/g, '')
-    // HTML entities
     .replace(/&nbsp;/gi, ' ')
     .replace(/&amp;/gi, '&')
     .replace(/&lt;/gi, '<')
     .replace(/&gt;/gi, '>')
     .replace(/&quot;/gi, '"')
     .replace(/&#(\d+);/g, (_m, code) => String.fromCharCode(Number(code)))
-    // 整理空白
     .replace(/[ \t]+/g, ' ')
     .replace(/\n{3,}/g, '\n\n')
     .trim();
@@ -66,15 +139,10 @@ interface SearchItem {
   snippet: string;
 }
 
-/** 调用 Google Custom Search API，返回结果列表 */
 async function googleSearch(query: string, numResults = 3): Promise<SearchItem[]> {
   const apiKey = process.env.GOOGLE_SEARCH_API_KEY;
   const cx = process.env.GOOGLE_SEARCH_ENGINE_ID;
-
-  if (!apiKey || !cx) {
-    console.warn('[scorecard-lookup] GOOGLE_SEARCH_API_KEY or GOOGLE_SEARCH_ENGINE_ID not set');
-    return [];
-  }
+  if (!apiKey || !cx) return [];
 
   const url =
     `https://www.googleapis.com/customsearch/v1` +
@@ -85,10 +153,7 @@ async function googleSearch(query: string, numResults = 3): Promise<SearchItem[]
 
   try {
     const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
-    if (!res.ok) {
-      console.warn(`[scorecard-lookup] Google Search API error: ${res.status}`);
-      return [];
-    }
+    if (!res.ok) return [];
     const data = await res.json();
     return (data.items ?? []) as SearchItem[];
   } catch {
@@ -96,7 +161,6 @@ async function googleSearch(query: string, numResults = 3): Promise<SearchItem[]
   }
 }
 
-/** 抓取单个页面并返回纯文本（最多 15000 字符） */
 async function fetchPageText(url: string): Promise<string> {
   try {
     const res = await fetch(url, {
@@ -111,286 +175,129 @@ async function fetchPageText(url: string): Promise<string> {
   }
 }
 
-/** 双路搜索：记分卡数据 + 洞介绍文章，合并内容后返回 */
-async function fetchScorecardContent(
-  name: string,
+// ---------- Hole Descriptions ----------
+
+/** Google 搜索 + LLM 提取洞描述文字（仅提取，不生成） */
+async function fetchHoleDescriptions(
+  courseName: string,
   location?: string,
-): Promise<{ text: string; sourceUrl?: string }> {
+): Promise<{ sourceUrl?: string; notes: Record<number, string> }> {
   const loc = location || '';
+  const items = await googleSearch(
+    `${courseName} ${loc} hole by hole guide review descriptions`.trim(),
+    3,
+  );
 
-  // 两条并行搜索
-  const [scorecardItems, guideItems] = await Promise.all([
-    googleSearch(
-      `${name} ${loc} golf scorecard hole by hole yardage course rating slope rating`.trim(),
-      3,
-    ),
-    googleSearch(
-      `${name} hole by hole guide review`.trim(),
-      3,
-    ),
-  ]);
+  if (items.length === 0) {
+    console.log('[scorecard-lookup] HOLE NOTES: no source found (Google returned 0 results)');
+    return { notes: {} };
+  }
 
-  const allItems = [...scorecardItems, ...guideItems];
-  if (allItems.length === 0) return { text: '' };
+  console.log('[scorecard-lookup] Google search returned', items.length, 'results:', items.map(i => i.link));
+  const sourceUrl = items[0].link;
+  const topUrls = [...new Set(items.map((i) => i.link))].slice(0, 2);
+  const snippets = items.map((i) => `[${i.title}]\n${i.snippet}`).join('\n\n');
 
-  const sourceUrl = allItems[0]?.link;
-
-  // 去重 URL，最多取前 5 条
-  const uniqueUrls = [...new Set(allItems.map((i) => i.link))].slice(0, 5);
-
-  // 搜索摘要（轻量但往往包含关键数字）
-  const snippets = allItems
-    .map((i) => `[${i.title}]\n${i.snippet}`)
-    .join('\n\n');
-
-  // 并行抓取前 3 个页面全文
-  const topUrls = uniqueUrls.slice(0, 3);
   const pageResults = await Promise.allSettled(topUrls.map(fetchPageText));
-
   const pageTexts = pageResults
     .filter((r): r is PromiseFulfilledResult<string> => r.status === 'fulfilled')
     .map((r) => r.value)
     .filter(Boolean);
 
-  const combinedText = [
+  const webContent = [
     '=== SEARCH SNIPPETS ===',
     snippets,
     ...pageTexts.map((t, i) => `=== PAGE ${i + 1}: ${topUrls[i]} ===\n${t}`),
   ].join('\n\n');
 
-  return { text: combinedText, sourceUrl };
-}
-
-// ---------- LLM Extraction ----------
-
-/** 调用 LLM 提取结构化记分卡数据（含洞注释、球场评级） */
-async function extractScorecardFromLLM(
-  name: string,
-  location?: string,
-  webContent?: string,
-): Promise<LookupResult> {
-  let userPrompt = `Golf course: ${name}`;
-  if (location) userPrompt += `\nLocation: ${location}`;
-
-  if (webContent) {
-    userPrompt += `\n\nWeb-sourced content about this course:\n${webContent}`;
-  } else {
-    userPrompt += '\n\nNo web content available — use your training data only.';
-  }
-
-  const response = await callLLM(SCORECARD_EXTRACTION_PROMPT, userPrompt, {
-    max_tokens: 6000,
-    temperature: 0,
-  });
-
-  // 从响应中提取 JSON（可能包含 markdown code block）
-  let jsonStr = response.content.trim();
-  const codeBlockMatch = jsonStr.match(/```(?:json)?\s*([\s\S]*?)```/);
-  if (codeBlockMatch) {
-    jsonStr = codeBlockMatch[1].trim();
-  }
-
-  const parsed = JSON.parse(jsonStr);
-
-  if (parsed.error) {
-    throw new Error(parsed.error);
-  }
-
-  return parsed as LookupResult;
-}
-
-// ---------- Validation ----------
-
-interface ValidationError {
-  tee: string;
-  issues: string[];
-}
-
-/** 验证记分卡数据完整性 */
-function validateScorecardData(data: LookupResult): ValidationError[] {
-  const errors: ValidationError[] = [];
-
-  for (const tee of data.tees) {
-    const issues: string[] = [];
-
-    // 必须有 18 个洞
-    if (tee.holes.length !== 18) {
-      issues.push(`Expected 18 holes, got ${tee.holes.length}`);
-    }
-
-    // 检查洞号 1-18
-    const holeNumbers = tee.holes.map((h) => h.hole_number).sort((a, b) => a - b);
-    const expected = Array.from({ length: 18 }, (_, i) => i + 1);
-    if (JSON.stringify(holeNumbers) !== JSON.stringify(expected)) {
-      issues.push('Hole numbers must be 1-18');
-    }
-
-    for (const hole of tee.holes) {
-      // Par 必须是 3/4/5
-      if (![3, 4, 5].includes(hole.par)) {
-        issues.push(`Hole ${hole.hole_number}: invalid par ${hole.par}`);
-      }
-      // Yardage 合理范围
-      if (hole.yardage <= 0 || hole.yardage > 700) {
-        issues.push(`Hole ${hole.hole_number}: invalid yardage ${hole.yardage}`);
-      }
-      // SI 范围
-      if (hole.si < 1 || hole.si > 18) {
-        issues.push(`Hole ${hole.hole_number}: SI ${hole.si} out of range`);
-      }
-    }
-
-    // SI 唯一性
-    const siValues = tee.holes.map((h) => h.si);
-    const uniqueSI = new Set(siValues);
-    if (uniqueSI.size !== tee.holes.length && tee.holes.length === 18) {
-      issues.push('Stroke index values must be unique (1-18)');
-    }
-
-    // course_rating / slope_rating 范围检查（有值时）
-    if (tee.course_rating !== undefined) {
-      if (tee.course_rating < 55 || tee.course_rating > 80) {
-        issues.push(`course_rating ${tee.course_rating} out of reasonable range (55-80)`);
-      }
-    }
-    if (tee.slope_rating !== undefined) {
-      if (tee.slope_rating < 55 || tee.slope_rating > 155) {
-        issues.push(`slope_rating ${tee.slope_rating} out of reasonable range (55-155)`);
-      }
-    }
-
-    if (issues.length > 0) {
-      errors.push({ tee: tee.tee_name, issues });
-    }
-  }
-
-  return errors;
-}
-
-// ---------- Ratings Fallback ----------
-
-/** 针对 course rating / slope rating 的补充搜索 */
-async function fetchRatingsContent(name: string, location?: string): Promise<string> {
-  const loc = location || '';
-  const items = await googleSearch(
-    `${name} ${loc} golf course rating slope rating tees scorecard`.trim(),
-    3,
-  );
-  if (items.length === 0) return '';
-
-  const snippets = items.map((i) => `[${i.title}]\n${i.snippet}`).join('\n\n');
-  const urls = [...new Set(items.map((i) => i.link))].slice(0, 2);
-  const pageResults = await Promise.allSettled(urls.map(fetchPageText));
-  const pageTexts = pageResults
-    .filter((r): r is PromiseFulfilledResult<string> => r.status === 'fulfilled')
-    .map((r) => r.value)
-    .filter(Boolean);
-
-  return [
-    '=== SEARCH SNIPPETS ===',
-    snippets,
-    ...pageTexts.map((t, i) => `=== PAGE ${i + 1}: ${urls[i]} ===\n${t}`),
-  ].join('\n\n');
-}
-
-/** 仅提取 course_rating / slope_rating 的轻量 LLM 调用 */
-async function extractRatingsFromLLM(
-  name: string,
-  teeNames: string[],
-  webContent: string,
-): Promise<Record<string, { course_rating?: number; slope_rating?: number }>> {
-  const systemPrompt = `You are a golf course data extraction tool.
-Extract course rating and slope rating for specific tees from the provided content.
-Return ONLY valid JSON with this structure — no markdown, no explanation:
-{
-  "tees": [
-    { "tee_name": "White", "course_rating": 71.2, "slope_rating": 128 }
-  ]
-}
-Rules:
-- Only include tees from this list: ${teeNames.join(', ')}
-- course_rating: decimal like 71.2, range 55-80
-- slope_rating: integer like 128, range 55-155
-- Omit a field if truly unknown
-- Return empty tees array if no data found`;
-
   try {
-    const response = await callLLM(systemPrompt, `Golf course: ${name}\n\nContent:\n${webContent}`, {
-      max_tokens: 500,
-      temperature: 0,
-    });
+    const response = await callLLM(
+      HOLE_NOTES_EXTRACTION_PROMPT,
+      `Golf course: ${courseName}\n\nContent:\n${webContent}`,
+      { max_tokens: 2000, temperature: 0 },
+    );
+
     let jsonStr = response.content.trim();
     const codeBlockMatch = jsonStr.match(/```(?:json)?\s*([\s\S]*?)```/);
     if (codeBlockMatch) jsonStr = codeBlockMatch[1].trim();
 
     const parsed = JSON.parse(jsonStr);
-    const result: Record<string, { course_rating?: number; slope_rating?: number }> = {};
-    for (const tee of (parsed.tees ?? [])) {
-      result[tee.tee_name] = {
-        course_rating: tee.course_rating,
-        slope_rating: tee.slope_rating,
-      };
+    if (!parsed.notes_found || !Array.isArray(parsed.holes)) return { notes: {} };
+
+    const notes: Record<number, string> = {};
+    for (const h of parsed.holes) {
+      if (h.note && typeof h.note === 'string') {
+        notes[h.hole_number] = h.note;
+      }
     }
-    return result;
-  } catch {
-    return {};
+
+    const hasNotes = Object.keys(notes).length > 0;
+    if (hasNotes) {
+      console.log(`[scorecard-lookup] HOLE NOTES from: ${sourceUrl} (${Object.keys(notes).length}/18 holes described)`);
+    } else {
+      console.log('[scorecard-lookup] HOLE NOTES: LLM found no descriptions in web content');
+    }
+    return { sourceUrl: hasNotes ? sourceUrl : undefined, notes };
+  } catch (err) {
+    console.error('[scorecard-lookup] LLM hole notes extraction error:', err);
+    return { notes: {} };
   }
 }
 
 // ---------- Main Entry ----------
 
-/** 查找球场记分卡：Google 搜索 + 页面抓取 + LLM 提取 + 验证 */
+/** 查找球场记分卡：GolfCourseAPI 获取数字 + Google+LLM 获取洞描述 */
 export async function lookupCourseScorecard(
   name: string,
   location?: string,
 ): Promise<LookupResult> {
-  // 1. 搜索 + 抓取 web 内容
-  const { text: webContent, sourceUrl } = await fetchScorecardContent(name, location);
+  // 1. GolfCourseAPI 查找（数字权威来源）
+  console.log('[scorecard-lookup] USING GolfCourseAPI for:', name);
+  const apiCourse = await searchGolfCourseAPI(name);
+  if (!apiCourse) {
+    console.log('[scorecard-lookup] GolfCourseAPI returned no results for:', name);
+    throw new Error('Course not found in database — please add manually.');
+  }
+  console.log('[scorecard-lookup] GolfCourseAPI found:', apiCourse.club_name, '— tees (male):', apiCourse.tees?.male?.length ?? 0, ', tees (female):', apiCourse.tees?.female?.length ?? 0);
 
-  // 2. LLM 提取结构化数据
-  const result = await extractScorecardFromLLM(name, location, webContent);
-
-  // 3. 填充 source_url
-  if (sourceUrl) {
-    result.source_url = sourceUrl;
+  // 2. 映射 tee 数据
+  const tees = mapGolfCourseAPITees(apiCourse);
+  if (tees.length === 0) {
+    throw new Error('Course found but no complete tee data available — please add manually.');
   }
 
-  // 4. 计算每个 tee 的 par_total
-  for (const tee of result.tees) {
-    tee.par_total = tee.holes.reduce((sum, h) => sum + h.par, 0);
-  }
-
-  // 5. 验证
-  const errors = validateScorecardData(result);
-  if (errors.length > 0 && result.confidence === 'high') {
-    result.confidence = 'medium';
-  }
-
-  // 6. 补充搜索：如果有 tee 缺失 course_rating 或 slope_rating，做一次针对性搜索
-  const teesNeedingRatings = result.tees.filter(
-    (t) => t.course_rating == null || t.slope_rating == null,
+  // 3. 并行获取洞描述（仅描述性文字，不影响数字）
+  const { sourceUrl: notesUrl, notes } = await fetchHoleDescriptions(
+    apiCourse.club_name || name,
+    location,
   );
-  if (teesNeedingRatings.length > 0) {
-    const ratingsContent = await fetchRatingsContent(name, location);
-    if (ratingsContent) {
-      const ratings = await extractRatingsFromLLM(
-        name,
-        teesNeedingRatings.map((t) => t.tee_name),
-        ratingsContent,
-      );
-      for (const tee of result.tees) {
-        const found = ratings[tee.tee_name];
-        if (found) {
-          if (found.course_rating != null && tee.course_rating == null) {
-            tee.course_rating = found.course_rating;
-          }
-          if (found.slope_rating != null && tee.slope_rating == null) {
-            tee.slope_rating = found.slope_rating;
-          }
-        }
+
+  // 4. 将 notes 合并到每个 tee 的洞数据
+  if (Object.keys(notes).length > 0) {
+    for (const tee of tees) {
+      for (const hole of tee.holes) {
+        const note = notes[hole.hole_number];
+        if (note) hole.hole_note = note;
       }
     }
   }
 
-  return result;
+  // 5. 组装位置字符串
+  const loc = apiCourse.location;
+  const locationStr = [loc?.city, loc?.state, loc?.country].filter(Boolean).join(', ');
+
+  const courseName = apiCourse.club_name
+    ? apiCourse.course_name
+      ? `${apiCourse.club_name} — ${apiCourse.course_name}`
+      : apiCourse.club_name
+    : name;
+
+  return {
+    course_name: courseName,
+    location: locationStr || location || '',
+    tees,
+    confidence: 'high',
+    scorecard_source: 'golfcourseapi',
+    notes_source_url: notesUrl,
+  };
 }
