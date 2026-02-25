@@ -15,12 +15,15 @@ interface LookupHole {
   par: number;
   yardage: number;
   si: number;
+  hole_note?: string;
 }
 
 interface LookupTee {
   tee_name: string;
   tee_color: string;
   par_total: number;
+  course_rating?: number;
+  slope_rating?: number;
   holes: LookupHole[];
   selected: boolean; // 用户是否选择保存此 tee
 }
@@ -342,20 +345,24 @@ export function CourseLookup() {
 
       // 创建选中的 tee + holes
       for (const tee of selectedTees) {
+        const teeBody: Record<string, unknown> = {
+          tee_name: tee.tee_name,
+          tee_color: tee.tee_color,
+          par_total: tee.par_total,
+        };
+        if (tee.course_rating != null) teeBody.course_rating = tee.course_rating;
+        if (tee.slope_rating != null) teeBody.slope_rating = tee.slope_rating;
+
         const teeRes = await fetch(`/api/courses/${courseId}/tees`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            tee_name: tee.tee_name,
-            tee_color: tee.tee_color,
-            par_total: tee.par_total,
-          }),
+          body: JSON.stringify(teeBody),
         });
 
         if (!teeRes.ok) throw new Error(`Failed to create ${tee.tee_name} tee`);
         const createdTee = (await teeRes.json()) as CourseTee;
 
-        // 批量 upsert holes
+        // 批量 upsert holes（含 hole_note）
         const holesRes = await fetch(
           `/api/courses/${courseId}/tees/${createdTee.id}/holes`,
           {
@@ -367,6 +374,7 @@ export function CourseLookup() {
                 par: h.par,
                 yardage: h.yardage,
                 si: h.si,
+                hole_note: h.hole_note || undefined,
               })),
             }),
           },
@@ -517,7 +525,12 @@ export function CourseLookup() {
                         </span>
                       )}
                     </label>
-                    <span className="text-[0.8125rem] text-secondary">Par {tee.par_total}</span>
+                    <div className="flex items-center gap-2 text-[0.8125rem] text-secondary">
+                      <span>Par {tee.par_total}</span>
+                      {tee.course_rating != null && <span>CR {tee.course_rating}</span>}
+                      {tee.slope_rating != null && <span>SL {tee.slope_rating}</span>}
+                      <span>{tee.holes.length} holes</span>
+                    </div>
                   </div>
                   {tee.selected && (
                     <EditableScorecardTable
