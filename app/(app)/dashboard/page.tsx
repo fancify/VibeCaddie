@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { QuickActions } from "@/components/dashboard/quick-actions";
 import { RecentRounds } from "@/components/dashboard/recent-rounds";
-import { TrendsCard } from "@/components/dashboard/trends-card";
+
 
 interface DashboardData {
   profile: { name: string } | null;
@@ -16,12 +16,6 @@ interface DashboardData {
     fw_count: number;
     insight?: string;
   }>;
-  trends: {
-    total_rounds: number;
-    avg_score_last5: number | null;
-    fw_rate_last5: number | null;
-  } | null;
-  insights?: string[];
 }
 
 export default function DashboardPage() {
@@ -84,9 +78,6 @@ export default function DashboardPage() {
 
       <RecentRounds rounds={data?.recent_rounds ?? []} />
 
-      {data?.trends && (
-        <TrendsCard trends={data.trends} insights={data.insights} />
-      )}
     </div>
   );
 }
