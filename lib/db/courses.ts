@@ -1,5 +1,5 @@
 import { query } from './client';
-import { Course, CourseTee, CourseHole, HoleHazard } from './types';
+import { Course, CourseTee, CourseHole, CourseImage, OfficialHoleNote, PlayerHoleNote, HoleHazard } from './types';
 
 /**
  * 模糊搜索球场名称 (pg_trgm similarity)
@@ -191,6 +191,22 @@ export async function getCourseHoles(courseTeeId: string): Promise<CourseHole[]>
 }
 
 /**
+ * 根据实际球洞 par 之和重新计算并更新 tee 的 par_total
+ */
+export async function recalcTeeParTotal(teeId: string): Promise<void> {
+  await query(
+    `UPDATE course_tees
+     SET par_total = (
+       SELECT COALESCE(SUM(par), 0)
+       FROM course_holes
+       WHERE course_tee_id = $1
+     )
+     WHERE id = $1`,
+    [teeId]
+  );
+}
+
+/**
  * 插入或更新球洞信息
  */
 export async function upsertCourseHole(data: {
@@ -248,4 +264,135 @@ export async function createHoleHazard(data: {
  */
 export async function deleteHoleHazard(id: string): Promise<void> {
   await query('DELETE FROM hole_hazards WHERE id = $1', [id]);
+}
+
+/**
+ * 获取球场所有洞的官方备注，返回以 hole_number 为 key 的 map
+ */
+export async function getOfficialNotesForCourse(courseId: string): Promise<Record<number, OfficialHoleNote>> {
+  const result = await query<OfficialHoleNote>(
+    'SELECT * FROM course_hole_official_notes WHERE course_id = $1',
+    [courseId]
+  );
+  const map: Record<number, OfficialHoleNote> = {};
+  for (const row of result.rows) {
+    map[row.hole_number] = row;
+  }
+  return map;
+}
+
+/**
+ * 创建或更新某洞的官方备注
+ */
+export async function upsertOfficialNote(
+  courseId: string,
+  holeNumber: number,
+  note: string
+): Promise<OfficialHoleNote> {
+  const result = await query<OfficialHoleNote>(
+    `INSERT INTO course_hole_official_notes (course_id, hole_number, note, updated_at)
+     VALUES ($1, $2, $3, now())
+     ON CONFLICT (course_id, hole_number)
+     DO UPDATE SET note = EXCLUDED.note, updated_at = now()
+     RETURNING *`,
+    [courseId, holeNumber, note]
+  );
+  return result.rows[0];
+}
+
+/**
+ * 删除某洞的官方备注
+ */
+export async function deleteOfficialNote(courseId: string, holeNumber: number): Promise<void> {
+  await query(
+    'DELETE FROM course_hole_official_notes WHERE course_id = $1 AND hole_number = $2',
+    [courseId, holeNumber]
+  );
+}
+
+/**
+ * 获取某洞的所有玩家备注（附带 is_mine 标记）
+ */
+export async function getPlayerNotes(
+  courseHoleId: string,
+  currentUserId: string
+): Promise<PlayerHoleNote[]> {
+  const result = await query<PlayerHoleNote & { is_mine: boolean }>(
+    `SELECT phn.*,
+            COALESCE(pp.name, phn.user_name, 'Anonymous') AS user_name,
+            (phn.user_id = $2) AS is_mine
+     FROM player_hole_notes phn
+     LEFT JOIN player_profiles pp ON pp.user_id = phn.user_id
+     WHERE phn.course_hole_id = $1
+     ORDER BY phn.created_at ASC`,
+    [courseHoleId, currentUserId]
+  );
+  return result.rows;
+}
+
+/**
+ * 创建或更新玩家备注（每用户每洞唯一）
+ */
+export async function upsertPlayerNote(data: {
+  courseHoleId: string;
+  userId: string;
+  userName: string;
+  note: string;
+}): Promise<PlayerHoleNote> {
+  const result = await query<PlayerHoleNote>(
+    `INSERT INTO player_hole_notes (course_hole_id, user_id, user_name, note, updated_at)
+     VALUES ($1, $2, $3, $4, now())
+     ON CONFLICT (course_hole_id, user_id)
+     DO UPDATE SET note = EXCLUDED.note, user_name = EXCLUDED.user_name, updated_at = now()
+     RETURNING *`,
+    [data.courseHoleId, data.userId, data.userName, data.note]
+  );
+  return result.rows[0];
+}
+
+/**
+ * 删除玩家备注（仅删自己的）
+ */
+export async function deletePlayerNote(noteId: string, userId: string): Promise<boolean> {
+  const result = await query(
+    'DELETE FROM player_hole_notes WHERE id = $1 AND user_id = $2',
+    [noteId, userId]
+  );
+  return (result.rowCount ?? 0) > 0;
+}
+
+/**
+ * 获取球场的所有图片
+ */
+export async function getCourseImages(courseId: string): Promise<CourseImage[]> {
+  const result = await query<CourseImage>(
+    'SELECT * FROM course_images WHERE course_id = $1 ORDER BY created_at ASC',
+    [courseId]
+  );
+  return result.rows;
+}
+
+/**
+ * 添加球场图片
+ */
+export async function addCourseImage(data: {
+  course_id: string;
+  data_url: string;
+  file_name?: string;
+}): Promise<CourseImage> {
+  const result = await query<CourseImage>(
+    `INSERT INTO course_images (course_id, data_url, file_name)
+     VALUES ($1, $2, $3)
+     RETURNING *`,
+    [data.course_id, data.data_url, data.file_name ?? null]
+  );
+  return result.rows[0];
+}
+
+/**
+ * 删除球场图片
+ */
+export async function deleteCourseImage(id: string): Promise<boolean> {
+  const result = await query('DELETE FROM course_images WHERE id = $1', [id]);
+  return (result.rowCount ?? 0) > 0;
 }

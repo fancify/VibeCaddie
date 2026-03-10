@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -23,16 +23,24 @@ interface TeeInput {
   par_total: string;
 }
 
+interface ImagePreview {
+  id: string;
+  dataUrl: string;
+  fileName: string;
+}
+
 function emptyTee(): TeeInput {
   return { tee_color: "", par_total: "" };
 }
 
-/** 球场创建表单：名称 + 位置 + tee 列表 */
+/** 球场创建表单：名称 + 位置 + tee 列表 + 图片 */
 export function CourseForm() {
   const router = useRouter();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [name, setName] = useState("");
   const [location, setLocation] = useState("");
   const [tees, setTees] = useState<TeeInput[]>([emptyTee()]);
+  const [images, setImages] = useState<ImagePreview[]>([]);
   const [duplicates, setDuplicates] = useState<Course[] | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -50,6 +58,26 @@ export function CourseForm() {
 
   function addTee() {
     setTees((prev) => [...prev, emptyTee()]);
+  }
+
+  function handleImageFiles(files: FileList | null) {
+    if (!files) return;
+    Array.from(files).forEach((file) => {
+      if (!file.type.startsWith("image/")) return;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const dataUrl = e.target?.result as string;
+        setImages((prev) => [
+          ...prev,
+          { id: crypto.randomUUID(), dataUrl, fileName: file.name },
+        ]);
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function removeImage(id: string) {
+    setImages((prev) => prev.filter((img) => img.id !== id));
   }
 
   // 校验 tee 数据
@@ -104,7 +132,20 @@ export function CourseForm() {
 
       const course = (await courseRes.json()) as Course;
 
-      // 2. 创建所有 tee（color 即 name）
+      // 2. 上传图片（并行）
+      if (images.length > 0) {
+        await Promise.all(
+          images.map((img) =>
+            fetch(`/api/courses/${course.id}/images`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ data_url: img.dataUrl, file_name: img.fileName }),
+            })
+          )
+        );
+      }
+
+      // 3. 创建所有 tee（color 即 name）
       const teeResponses = await Promise.all(
         tees.map((tee) =>
           fetch(`/api/courses/${course.id}/tees`, {
@@ -119,7 +160,7 @@ export function CourseForm() {
         )
       );
 
-      // 3. 跳转到第一个 tee 的 holes 编辑页，带上 course 信息
+      // 4. 跳转到第一个 tee 的 holes 编辑页，带上 course 信息
       const firstTeeRes = teeResponses[0];
       if (firstTeeRes && firstTeeRes.ok) {
         const firstTee = (await firstTeeRes.json()) as CourseTee;
@@ -156,6 +197,50 @@ export function CourseForm() {
           onChange={setLocation}
           placeholder="e.g. Shenzhen, China"
         />
+      </div>
+
+      {/* 图片上传 */}
+      <div className="flex flex-col gap-3">
+        <SectionTitle>Photos (optional)</SectionTitle>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          multiple
+          className="hidden"
+          onChange={(e) => handleImageFiles(e.target.files)}
+        />
+        {images.length > 0 && (
+          <div className="grid grid-cols-3 gap-2">
+            {images.map((img) => (
+              <div key={img.id} className="relative group aspect-square rounded-lg overflow-hidden border border-divider">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={img.dataUrl}
+                  alt={img.fileName}
+                  className="w-full h-full object-cover"
+                />
+                <button
+                  type="button"
+                  onClick={() => removeImage(img.id)}
+                  className="absolute top-1 right-1 bg-black/50 text-white rounded-full w-5 h-5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer text-xs leading-none"
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+        <button
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          className="flex items-center justify-center gap-2 w-full rounded-lg border border-dashed border-divider py-3 text-[0.875rem] text-secondary hover:border-accent/50 hover:text-accent transition-colors cursor-pointer"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+          </svg>
+          {images.length === 0 ? "Add photos" : "Add more photos"}
+        </button>
       </div>
 
       {/* 查重警告 */}

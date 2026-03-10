@@ -20,6 +20,14 @@ CREATE TABLE IF NOT EXISTS courses (
 
 CREATE INDEX IF NOT EXISTS idx_courses_name_trgm ON courses USING gin(name gin_trgm_ops);
 
+CREATE TABLE IF NOT EXISTS course_images (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  course_id UUID NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
+  data_url TEXT NOT NULL,
+  file_name TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 CREATE TABLE IF NOT EXISTS course_tees (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   course_id UUID NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
@@ -38,6 +46,26 @@ CREATE TABLE IF NOT EXISTS course_holes (
   si INT,
   hole_note TEXT,
   UNIQUE(course_tee_id, hole_number)
+);
+
+CREATE TABLE IF NOT EXISTS course_hole_official_notes (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  course_id UUID NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
+  hole_number INT NOT NULL CHECK (hole_number BETWEEN 1 AND 18),
+  note TEXT NOT NULL,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE(course_id, hole_number)
+);
+
+CREATE TABLE IF NOT EXISTS player_hole_notes (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  course_hole_id UUID NOT NULL REFERENCES course_holes(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL,
+  user_name TEXT NOT NULL DEFAULT '',
+  note TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE(course_hole_id, user_id)
 );
 
 CREATE TABLE IF NOT EXISTS hole_hazards (

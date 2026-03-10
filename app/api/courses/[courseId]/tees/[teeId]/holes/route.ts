@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getUserId } from "@/lib/auth/session";
-import { getCourseHoles, upsertCourseHole } from "@/lib/db/courses";
+import { getCourseHoles, upsertCourseHole, recalcTeeParTotal } from "@/lib/db/courses";
 
 interface RouteContext {
   params: Promise<{ courseId: string; teeId: string }>;
@@ -41,7 +41,6 @@ export async function PUT(
         par: number;
         yardage: number;
         si?: number;
-        hole_note?: string;
       }>;
     };
 
@@ -63,10 +62,12 @@ export async function PUT(
           par: h.par,
           yardage: h.yardage,
           si: h.si,
-          hole_note: h.hole_note,
         })
       )
     );
+
+    // 根据实际球洞 par 之和更新 tee 的 par_total
+    await recalcTeeParTotal(teeId);
 
     return NextResponse.json(results);
   } catch (error) {
